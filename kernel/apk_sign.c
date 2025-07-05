@@ -139,6 +139,10 @@ int ksu_get_manager_signature_index(uid_t uid)
     int signature_index = -1;
     int i;
     
+    if (ksu_manager_uid != KSU_INVALID_UID && uid == ksu_manager_uid) {
+        return 1;
+    }
+    
     if (!is_dynamic_sign_enabled()) {
         return -1;
     }
@@ -440,6 +444,40 @@ void ksu_dynamic_sign_exit(void)
     
     do_save_dynamic_sign(NULL);
     pr_info("Dynamic sign exited with persistent storage\n");
+}
+
+// Get active managers for multi-manager APKs
+int ksu_get_active_managers(struct manager_list_info *info)
+{
+    unsigned long flags;
+    int i, count = 0;
+    
+    if (!info) {
+        return -EINVAL;
+    }
+
+    if (ksu_manager_uid != KSU_INVALID_UID && count < 2) {
+        info->managers[count].uid = ksu_manager_uid;
+        info->managers[count].signature_index = 1;
+        count++;
+    }
+    
+    if (is_dynamic_sign_enabled()) {
+        spin_lock_irqsave(&managers_lock, flags);
+        
+        for (i = 0; i < MAX_MANAGERS && count < 2; i++) {
+            if (active_managers[i].is_active) {
+                info->managers[count].uid = active_managers[i].uid;
+                info->managers[count].signature_index = active_managers[i].signature_index;
+                count++;
+            }
+        }
+        
+        spin_unlock_irqrestore(&managers_lock, flags);
+    }
+    
+    info->count = count;
+    return 0;
 }
 
 struct sdesc {

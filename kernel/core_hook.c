@@ -372,6 +372,27 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
     	return 0;
 	}
 
+	// Allow root manager to get active managers
+	if (arg2 == CMD_GET_MANAGERS) {
+		if (!from_root && !from_manager) {
+			return 0;
+		}
+		
+		struct manager_list_info manager_info;
+		int ret = ksu_get_active_managers(&manager_info);
+		
+		if (ret == 0) {
+			if (copy_to_user((void __user *)arg3, &manager_info, sizeof(manager_info))) {
+				pr_err("copy manager list failed\n");
+				return 0;
+			}
+			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+				pr_err("get_managers: prctl reply error\n");
+			}
+		}
+		return 0;
+	}
+
 	if (arg2 == CMD_REPORT_EVENT) {
 		if (!from_root) {
 			return 0;
