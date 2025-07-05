@@ -25,6 +25,10 @@
 #define DYNAMIC_SIGN_FILE_VERSION 1 // u32
 #define KERNEL_SU_DYNAMIC_SIGN "/data/adb/ksu/.dynamic_sign"
 
+#define MAX_MANAGERS 2
+static struct manager_info active_managers[MAX_MANAGERS];
+static DEFINE_SPINLOCK(managers_lock);
+
 static struct dynamic_sign_config dynamic_sign = {
     .size = 0x300, 
     .hash = "0000000000000000000000000000000000000000000000000000000000000000",
@@ -35,6 +39,140 @@ static DEFINE_SPINLOCK(dynamic_sign_lock);
 static struct work_struct ksu_save_dynamic_sign_work;
 static struct work_struct ksu_load_dynamic_sign_work;
 static struct work_struct ksu_clear_dynamic_sign_work;
+
+static inline bool is_dynamic_sign_enabled(void)
+{
+    unsigned long flags;
+    bool enabled;
+    
+    spin_lock_irqsave(&dynamic_sign_lock, flags);
+    enabled = dynamic_sign.is_set;
+    spin_unlock_irqrestore(&dynamic_sign_lock, flags);
+    
+    return enabled;
+}
+
+void ksu_add_manager(uid_t uid, int signature_index)
+{
+    unsigned long flags;
+    int i;
+    
+    if (!is_dynamic_sign_enabled()) {
+        pr_info("Dynamic sign not enabled, skipping multi-manager add\n");
+        return;
+    }
+    
+    spin_lock_irqsave(&managers_lock, flags);
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (active_managers[i].is_active && active_managers[i].uid == uid) {
+            active_managers[i].signature_index = signature_index;
+            spin_unlock_irqrestore(&managers_lock, flags);
+            pr_info("Updated manager uid=%d, signature_index=%d\n", uid, signature_index);
+            return;
+        }
+    }
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (!active_managers[i].is_active) {
+            active_managers[i].uid = uid;
+            active_managers[i].signature_index = signature_index;
+            active_managers[i].is_active = true;
+            spin_unlock_irqrestore(&managers_lock, flags);
+            pr_info("Added manager uid=%d, signature_index=%d\n", uid, signature_index);
+            return;
+        }
+    }
+    
+    spin_unlock_irqrestore(&managers_lock, flags);
+    pr_warn("Failed to add manager, no free slots\n");
+}
+
+void ksu_remove_manager(uid_t uid)
+{
+    unsigned long flags;
+    int i;
+    
+    if (!is_dynamic_sign_enabled()) {
+        return;
+    }
+    
+    spin_lock_irqsave(&managers_lock, flags);
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (active_managers[i].is_active && active_managers[i].uid == uid) {
+            active_managers[i].is_active = false;
+            pr_info("Removed manager uid=%d\n", uid);
+            break;
+        }
+    }
+    
+    spin_unlock_irqrestore(&managers_lock, flags);
+}
+
+bool ksu_is_any_manager(uid_t uid)
+{
+    unsigned long flags;
+    bool is_manager = false;
+    int i;
+    
+    if (!is_dynamic_sign_enabled()) {
+        return false;
+    }
+    
+    spin_lock_irqsave(&managers_lock, flags);
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (active_managers[i].is_active && active_managers[i].uid == uid) {
+            is_manager = true;
+            break;
+        }
+    }
+    
+    spin_unlock_irqrestore(&managers_lock, flags);
+    return is_manager;
+}
+
+int ksu_get_manager_signature_index(uid_t uid)
+{
+    unsigned long flags;
+    int signature_index = -1;
+    int i;
+    
+    if (!is_dynamic_sign_enabled()) {
+        return -1;
+    }
+    
+    spin_lock_irqsave(&managers_lock, flags);
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (active_managers[i].is_active && active_managers[i].uid == uid) {
+            signature_index = active_managers[i].signature_index;
+            break;
+        }
+    }
+    
+    spin_unlock_irqrestore(&managers_lock, flags);
+    return signature_index;
+}
+
+static void clear_all_managers(void)
+{
+    unsigned long flags;
+    int i;
+    
+    spin_lock_irqsave(&managers_lock, flags);
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        if (active_managers[i].is_active) {
+            pr_info("Clearing manager uid=%d due to dynamic_sign disable\n", 
+                    active_managers[i].uid);
+            active_managers[i].is_active = false;
+        }
+    }
+    
+    spin_unlock_irqrestore(&managers_lock, flags);
+}
 
 static void do_save_dynamic_sign(struct work_struct *work)
 {
@@ -232,7 +370,8 @@ int ksu_handle_dynamic_sign(struct dynamic_sign_user_config *config)
         spin_unlock_irqrestore(&dynamic_sign_lock, flags);
         
         persistent_dynamic_sign();
-        pr_info("dynamic sign updated: size=0x%x, hash=%.16s...\n", config->size, config->hash);
+        pr_info("dynamic sign updated: size=0x%x, hash=%.16s... (multi-manager enabled)\n", 
+                config->size, config->hash);
         break;
         
     case DYNAMIC_SIGN_OP_GET:
@@ -259,11 +398,12 @@ int ksu_handle_dynamic_sign(struct dynamic_sign_user_config *config)
         strcpy(dynamic_sign.hash, "0000000000000000000000000000000000000000000000000000000000000000");
         dynamic_sign.is_set = 0;
         spin_unlock_irqrestore(&dynamic_sign_lock, flags);
+        clear_all_managers();
         
         // Clear file using the same method as save
         clear_dynamic_sign_file();
         
-        pr_info("Dynamic sign config cleared\n");
+        pr_info("Dynamic sign config cleared (multi-manager disabled)\n");
         break;
         
     default:
@@ -281,14 +421,23 @@ bool ksu_load_dynamic_sign(void)
 
 void ksu_dynamic_sign_init(void)
 {
+    int i;
+    
     INIT_WORK(&ksu_save_dynamic_sign_work, do_save_dynamic_sign);
     INIT_WORK(&ksu_load_dynamic_sign_work, do_load_dynamic_sign);
     INIT_WORK(&ksu_clear_dynamic_sign_work, do_clear_dynamic_sign_file);
-    pr_info("Dynamic sign initialized with persistent storage\n");
+    
+    for (i = 0; i < MAX_MANAGERS; i++) {
+        active_managers[i].is_active = false;
+    }
+    
+    pr_info("Dynamic sign initialized with conditional multi-manager support\n");
 }
 
 void ksu_dynamic_sign_exit(void)
 {
+    clear_all_managers();
+    
     do_save_dynamic_sign(NULL);
     pr_info("Dynamic sign exited with persistent storage\n");
 }
@@ -352,6 +501,233 @@ static int ksu_sha256(const unsigned char *data, unsigned int datalen,
 	ret = calc_hash(alg, data, datalen, digest);
 	crypto_free_shash(alg);
 	return ret;
+}
+
+bool ksu_is_multi_manager_apk(char *path, int *signature_index)
+{
+	unsigned char buffer[0x11] = { 0 };
+	u32 size4;
+	u64 size8, size_of_block;
+
+	loff_t pos;
+
+	bool v2_signing_valid = false;
+	int v2_signing_blocks = 0;
+	bool v3_signing_exist = false;
+	bool v3_1_signing_exist = false;
+	int matched_index = -1;
+
+	int i;
+	struct file *fp = ksu_filp_open_compat(path, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_err("open %s error.\n", path);
+		return false;
+	}
+
+	if (!is_dynamic_sign_enabled()) {
+		filp_close(fp, 0);
+		return false;
+	}
+
+	// disable inotify for this file
+	fp->f_mode |= FMODE_NONOTIFY;
+
+	// https://en.wikipedia.org/wiki/Zip_(file_format)#End_of_central_directory_record_(EOCD)
+	for (i = 0;; ++i) {
+		unsigned short n;
+		pos = generic_file_llseek(fp, -i - 2, SEEK_END);
+		ksu_kernel_read_compat(fp, &n, 2, &pos);
+		if (n == i) {
+			pos -= 22;
+			ksu_kernel_read_compat(fp, &size4, 4, &pos);
+			if ((size4 ^ 0xcafebabeu) == 0xccfbf1eeu) {
+				break;
+			}
+		}
+		if (i == 0xffff) {
+			pr_info("error: cannot find eocd\n");
+			goto clean;
+		}
+	}
+
+	pos += 12;
+	// offset
+	ksu_kernel_read_compat(fp, &size4, 0x4, &pos);
+	pos = size4 - 0x18;
+
+	ksu_kernel_read_compat(fp, &size8, 0x8, &pos);
+	ksu_kernel_read_compat(fp, buffer, 0x10, &pos);
+	if (strcmp((char *)buffer, "APK Sig Block 42")) {
+		goto clean;
+	}
+
+	pos = size4 - (size8 + 0x8);
+	ksu_kernel_read_compat(fp, &size_of_block, 0x8, &pos);
+	if (size_of_block != size8) {
+		goto clean;
+	}
+
+	int loop_count = 0;
+	while (loop_count++ < 10) {
+		uint32_t id;
+		uint32_t offset;
+		ksu_kernel_read_compat(fp, &size8, 0x8, &pos); // sequence length
+		if (size8 == size_of_block) {
+			break;
+		}
+		ksu_kernel_read_compat(fp, &id, 0x4, &pos); // id
+		offset = 4;
+		if (id == 0x7109871au) {
+			v2_signing_blocks++;
+			
+			loff_t check_pos = pos;
+			u32 check_offset = offset;
+			
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // signer-sequence length
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // signer length
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // signed data length
+
+			check_offset += 0x4 * 3;
+
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // digests-sequence length
+
+			check_pos += size4;
+			check_offset += 0x4 + size4;
+
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // certificates length
+			ksu_kernel_read_compat(fp, &size4, 0x4, &check_pos); // certificate length
+			check_offset += 0x4 * 2;
+
+			for (i = 0; i < ARRAY_SIZE(apk_sign_keys); i++) {
+				struct apk_sign_key sign_key = apk_sign_keys[i];
+
+				if (i == 2) {
+					unsigned long flags;
+					spin_lock_irqsave(&dynamic_sign_lock, flags);
+					if (dynamic_sign.is_set) {
+						sign_key.size = dynamic_sign.size;
+						sign_key.sha256 = dynamic_sign.hash;
+					}
+					spin_unlock_irqrestore(&dynamic_sign_lock, flags);
+				}
+
+				if (size4 != sign_key.size)
+					continue;
+
+#define CERT_MAX_LENGTH 1024
+				char cert[CERT_MAX_LENGTH];
+				if (size4 > CERT_MAX_LENGTH) {
+					pr_info("cert length overlimit\n");
+					continue;
+				}
+				
+				loff_t cert_pos = check_pos;
+				ksu_kernel_read_compat(fp, cert, size4, &cert_pos);
+				unsigned char digest[SHA256_DIGEST_SIZE];
+				if (IS_ERR(ksu_sha256(cert, size4, digest))) {
+					pr_info("sha256 error\n");
+					continue;
+				}
+
+				char hash_str[SHA256_DIGEST_SIZE * 2 + 1];
+				hash_str[SHA256_DIGEST_SIZE * 2] = '\0';
+
+				bin2hex(hash_str, digest, SHA256_DIGEST_SIZE);
+				pr_info("sha256: %s, expected: %s, index: %d\n", hash_str, sign_key.sha256, i);
+				
+				if (strcmp(sign_key.sha256, hash_str) == 0) {
+					v2_signing_valid = true;
+					matched_index = i;
+					if (signature_index) {
+						*signature_index = i;
+					}
+					break;
+				}
+			}
+		} else if (id == 0xf05368c0u) {
+			// http://aospxref.com/android-14.0.0_r2/xref/frameworks/base/core/java/android/util/apk/ApkSignatureSchemeV3Verifier.java#73
+			v3_signing_exist = true;
+		} else if (id == 0x1b93ad61u) {
+			// http://aospxref.com/android-14.0.0_r2/xref/frameworks/base/core/java/android/util/apk/ApkSignatureSchemeV3Verifier.java#74
+			v3_1_signing_exist = true;
+		} else {
+#ifdef CONFIG_KSU_DEBUG
+			pr_info("Unknown id: 0x%08x\n", id);
+#endif
+		}
+		pos += (size8 - offset);
+	}
+
+	if (v2_signing_blocks != 1) {
+#ifdef CONFIG_KSU_DEBUG
+		pr_err("Unexpected v2 signature count: %d\n", v2_signing_blocks);
+#endif
+		v2_signing_valid = false;
+	}
+
+	if (v2_signing_valid) {
+		loff_t v1_pos = 0;
+		struct zip_entry_header {
+			uint32_t signature;
+			uint16_t version;
+			uint16_t flags;
+			uint16_t compression;
+			uint16_t mod_time;
+			uint16_t mod_date;
+			uint32_t crc32;
+			uint32_t compressed_size;
+			uint32_t uncompressed_size;
+			uint16_t file_name_length;
+			uint16_t extra_field_length;
+		} __attribute__((packed)) header;
+		
+		const char MANIFEST[] = "META-INF/MANIFEST.MF";
+		bool has_v1_signing = false;
+
+		while (ksu_kernel_read_compat(fp, &header, sizeof(header), &v1_pos) == sizeof(header)) {
+			if (header.signature != 0x04034b50) {
+				break;
+			}
+			
+			if (header.file_name_length == sizeof(MANIFEST) - 1) {
+				char fileName[sizeof(MANIFEST)];
+				ksu_kernel_read_compat(fp, fileName, header.file_name_length, &v1_pos);
+				fileName[header.file_name_length] = '\0';
+
+				if (strncmp(MANIFEST, fileName, sizeof(MANIFEST) - 1) == 0) {
+					has_v1_signing = true;
+					break;
+				}
+			} else {
+				v1_pos += header.file_name_length;
+			}
+
+			v1_pos += header.extra_field_length + header.compressed_size;
+		}
+		
+		if (has_v1_signing) {
+			pr_err("Unexpected v1 signature scheme found!\n");
+			filp_close(fp, 0);
+			return false;
+		}
+	}
+
+clean:
+	filp_close(fp, 0);
+
+	if (v3_signing_exist || v3_1_signing_exist) {
+#ifdef CONFIG_KSU_DEBUG
+		pr_err("Unexpected v3 signature scheme found!\n");
+#endif
+		return false;
+	}
+
+	if (v2_signing_valid && (matched_index == 1 || matched_index == 2)) {
+		pr_info("Multi-manager APK detected (dynamic_sign enabled): signature_index=%d\n", matched_index);
+		return true;
+	}
+
+	return false;
 }
 
 static bool check_block(struct file *fp, u32 *size4, loff_t *pos, u32 *offset)
