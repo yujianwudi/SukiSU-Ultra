@@ -27,6 +27,7 @@
 #define CMD_GET_FULL_VERSION 0xC0FFEE1A
 
 #define CMD_ENABLE_KPM 100
+#define CMD_DYNAMIC_SIGN 103
 
 #define EVENT_POST_FS_DATA 1
 #define EVENT_BOOT_COMPLETED 2
@@ -43,6 +44,16 @@
 #define KSU_VERSION_FULL "v3.x-00000000@unknown"
 #endif
 #define KSU_FULL_VERSION_STRING 255
+
+#define DYNAMIC_SIGN_OP_SET 0
+#define DYNAMIC_SIGN_OP_GET 1
+#define DYNAMIC_SIGN_OP_CLEAR 2
+
+struct dynamic_sign_user_config {
+    unsigned int operation;
+    unsigned int size;
+    char hash[65];
+};
 
 struct root_profile {
 	int32_t uid;

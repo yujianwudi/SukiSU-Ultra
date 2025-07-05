@@ -342,6 +342,36 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 		return 0;
 	}
 
+	// Allow the root manager to configure dynamic signatures
+	if (arg2 == CMD_DYNAMIC_SIGN) {
+    	if (!from_root && !from_manager) {
+        	return 0;
+    	}
+    
+    	struct dynamic_sign_user_config config;
+    
+    	if (copy_from_user(&config, (void __user *)arg3, sizeof(config))) {
+        	pr_err("copy dynamic sign config failed\n");
+        	return 0;
+    	}
+    
+    	int ret = ksu_handle_dynamic_sign(&config);
+    	
+    	if (ret == 0 && config.operation == DYNAMIC_SIGN_OP_GET) {
+        	if (copy_to_user((void __user *)arg3, &config, sizeof(config))) {
+            	pr_err("copy dynamic sign config back failed\n");
+            	return 0;
+        	}
+    	}
+    	
+    	if (ret == 0) {
+        	if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+            	pr_err("dynamic_sign: prctl reply error\n");
+        	}
+    	}
+    	return 0;
+	}
+
 	if (arg2 == CMD_REPORT_EVENT) {
 		if (!from_root) {
 			return 0;
@@ -353,6 +383,10 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 				post_fs_data_lock = true;
 				pr_info("post-fs-data triggered\n");
 				on_post_fs_data();
+				// Initializing Dynamic Signatures
+        		ksu_dynamic_sign_init();
+        		ksu_load_dynamic_sign();
+        		pr_info("Dynamic sign config loaded during post-fs-data\n");
 			}
 			break;
 		}
