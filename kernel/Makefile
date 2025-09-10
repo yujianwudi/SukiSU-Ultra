@@ -27,7 +27,7 @@ obj-$(CONFIG_KPM) += kpm/
 
 REPO_OWNER := SukiSU-Ultra
 REPO_NAME := SukiSU-Ultra
-REPO_BRANCH := main
+REPO_BRANCH := 御剑无敌
 KSU_VERSION_API := 3.1.9
 
 GIT_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git
