@@ -74,7 +74,6 @@ import com.sukisu.ultra.ui.screen.SulogScreen
 import com.sukisu.ultra.ui.screen.SuperUserPager
 import com.sukisu.ultra.ui.screen.TemplateEditorScreen
 import com.sukisu.ultra.ui.screen.UmountManagerScreen
-import com.sukisu.ultra.ui.screen.settings.Personalization
 import com.sukisu.ultra.ui.screen.settings.Tools
 import com.sukisu.ultra.ui.susfs.SuSFSConfigScreen
 import com.sukisu.ultra.ui.theme.KernelSUTheme
@@ -139,7 +138,8 @@ class MainActivity : ComponentActivity() {
                         "page_scale" -> pageScale = prefs.getFloat("page_scale", 1f)
                         "enable_blur" -> enableBlur = prefs.getBoolean("enable_blur", true)
                         "enable_floating_bottom_bar" -> enableFloatingBottomBar = prefs.getBoolean("enable_floating_bottom_bar", false)
-                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur = prefs.getBoolean("enable_floating_bottom_bar_blur", true)
+                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur =
+                            prefs.getBoolean("enable_floating_bottom_bar_blur", true)
                     }
                 }
                 prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -212,7 +212,6 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Kpm> { KpmScreen() }
                                 entry<Route.SuSFS> { SuSFSConfigScreen() }
                                 entry<Route.Tool> { Tools() }
-                                entry<Route.Personalization> { Personalization() }
                                 entry<Route.UmountManager> { UmountManagerScreen() }
                                 entry<Route.Sulog> { SulogScreen() }
                             }

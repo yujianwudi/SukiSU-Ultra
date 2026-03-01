@@ -1,171 +1,155 @@
 package com.sukisu.ultra.ui.viewmodel
 
 import android.util.Log
-import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sukisu.ultra.data.repository.KpmRepository
+import com.sukisu.ultra.data.repository.KpmRepositoryImpl
 import com.sukisu.ultra.ui.component.SearchStatus
-import com.sukisu.ultra.ui.util.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * @author ShirkNeko
- * @date 2025/5/31.
- */
-class KpmViewModel : ViewModel() {
-    private var _moduleList by mutableStateOf(emptyList<ModuleInfo>())
-    
-    val moduleList by derivedStateOf {
-        val searchText = _searchStatus.value.searchText
-        if (searchText.isEmpty()) {
-            _moduleList
-        } else {
-            _moduleList.filter {
-                it.id.contains(searchText, true) ||
-                it.name.contains(searchText, true) ||
-                it.description.contains(searchText, true) ||
-                it.author.contains(searchText, true) ||
-                it.version.contains(searchText, true)
-            }
-        }
+class KpmViewModel(
+    private val repo: KpmRepository = KpmRepositoryImpl()
+) : ViewModel() {
+
+    companion object {
+        private const val TAG = "KpmViewModel"
     }
 
-    private val _searchStatus = mutableStateOf(SearchStatus(""))
-    val searchStatus: State<SearchStatus> = _searchStatus
+    private val _uiState = MutableStateFlow(KpmUiState())
+    val uiState: StateFlow<KpmUiState> = _uiState.asStateFlow()
 
-    var isRefreshing by mutableStateOf(false)
-        private set
-
+    private var _showInputDialog = false
+    private var _selectedModuleId: String? = null
+    private var _inputArgs = ""
     var currentModuleDetail by mutableStateOf("")
         private set
 
+    val showInputDialog: Boolean get() = _showInputDialog
+    val selectedModuleId: String? get() = _selectedModuleId
+    val inputArgs: String get() = _inputArgs
+
     fun fetchModuleList() {
         viewModelScope.launch {
-            isRefreshing = true
-            try {
-                val moduleCount = getKpmModuleCount()
-                Log.d("KsuCli", "Module count: $moduleCount")
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
 
-                _moduleList = getAllKpmModuleInfo()
-
-                // 获取 KPM 版本信息
-                val kpmVersion = getKpmVersion()
-                Log.d("KsuCli", "KPM Version: $kpmVersion")
-            } catch (e: Exception) {
-                Log.e("KsuCli", "获取模块列表失败", e)
-            } finally {
-                isRefreshing = false
-            }
-        }
-    }
-
-    private fun getAllKpmModuleInfo(): List<ModuleInfo> {
-        val result = mutableListOf<ModuleInfo>()
-        try {
-            val str = listKpmModules()
-            val moduleNames = str
-                .split("\n")
-                .filter { it.isNotBlank() }
-
-            for (name in moduleNames) {
-                try {
-                    val moduleInfo = parseModuleInfo(name)
-                    moduleInfo?.let { result.add(it) }
-                } catch (e: Exception) {
-                    Log.e("KsuCli", "Error processing module $name", e)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("KsuCli", "Failed to get module list", e)
-        }
-        return result
-    }
-
-    private fun parseModuleInfo(name: String): ModuleInfo? {
-        val info = getKpmModuleInfo(name)
-        if (info.isBlank()) return null
-
-        val properties = info.lineSequence()
-            .filter { line ->
-                val trimmed = line.trim()
-                trimmed.isNotEmpty() && !trimmed.startsWith("#")
-            }
-            .mapNotNull { line ->
-                line.split("=", limit = 2).let { parts ->
-                    when (parts.size) {
-                        2 -> parts[0].trim() to parts[1].trim()
-                        1 -> parts[0].trim() to ""
-                        else -> null
+            repo.getModuleList()
+                .onSuccess { modules ->
+                    _uiState.update {
+                        it.copy(
+                            moduleList = modules,
+                            isRefreshing = false
+                        )
                     }
                 }
-            }
-            .toMap()
-
-        return ModuleInfo(
-            id = name,
-            name = properties["name"] ?: name,
-            version = properties["version"] ?: "",
-            author = properties["author"] ?: "",
-            description = properties["description"] ?: "",
-            args = properties["args"] ?: "",
-            enabled = true,
-            hasAction = true
-        )
+                .onFailure { e ->
+                    Log.e(TAG, "fetchModuleList failed", e)
+                    _uiState.update {
+                        it.copy(
+                            isRefreshing = false,
+                            error = e
+                        )
+                    }
+                }
+        }
     }
 
     fun loadModuleDetail(moduleId: String) {
         viewModelScope.launch {
-            try {
-                currentModuleDetail = withContext(Dispatchers.IO) {
-                    getKpmModuleInfo(moduleId)
+            repo.getModuleInfo(moduleId)
+                .onSuccess { detail ->
+                    currentModuleDetail = detail
+                    Log.d(TAG, "Module detail loaded: $currentModuleDetail")
                 }
-                Log.d("KsuCli", "Module detail loaded: $currentModuleDetail")
-            } catch (e: Exception) {
-                Log.e("KsuCli", "Failed to load module detail", e)
-                currentModuleDetail = "Error: ${e.message}"
-            }
+                .onFailure { e ->
+                    Log.e(TAG, "Failed to load module detail", e)
+                    currentModuleDetail = "Error: ${e.message}"
+                }
         }
     }
 
-    var showInputDialog by mutableStateOf(false)
-        private set
-
-    var selectedModuleId by mutableStateOf<String?>(null)
-        private set
-
-    var inputArgs by mutableStateOf("")
-        private set
-
     fun showInputDialog(moduleId: String) {
-        selectedModuleId = moduleId
-        showInputDialog = true
+        _selectedModuleId = moduleId
+        _showInputDialog = true
     }
 
     fun hideInputDialog() {
-        showInputDialog = false
-        selectedModuleId = null
-        inputArgs = ""
+        _showInputDialog = false
+        _selectedModuleId = null
+        _inputArgs = ""
     }
 
     fun updateInputArgs(args: String) {
-        inputArgs = args
+        _inputArgs = args
     }
 
-    fun executeControl(): Int {
-        val moduleId = selectedModuleId ?: return -1
-        val result = controlKpmModule(moduleId, inputArgs)
-        hideInputDialog()
-        return result
+    suspend fun executeControl(): Int {
+        val moduleId = _selectedModuleId ?: return -1
+
+        return repo.controlModule(moduleId, _inputArgs)
+            .onSuccess { _ ->
+                hideInputDialog()
+            }
+            .onFailure { e ->
+                Log.e(TAG, "Failed to control module", e)
+                hideInputDialog()
+                1
+            }
+            .getOrElse { -1 }
     }
 
-    fun updateSearchText(text: String) {
-        _searchStatus.value.searchText = text
+    fun updateSearchStatus(status: SearchStatus) {
+        _uiState.update { it.copy(searchStatus = status) }
+    }
+
+    suspend fun updateSearchText(text: String) {
+        _uiState.update {
+            it.copy(
+                searchStatus = it.searchStatus.copy(searchText = text)
+            )
+        }
+
+        if (text.isEmpty()) {
+            _uiState.update {
+                it.copy(
+                    searchStatus = it.searchStatus.copy(resultStatus = SearchStatus.ResultStatus.DEFAULT),
+                    searchResults = emptyList()
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(searchStatus = it.searchStatus.copy(resultStatus = SearchStatus.ResultStatus.LOAD))
+        }
+
+        val result = withContext(Dispatchers.Default) {
+            _uiState.value.moduleList.filter {
+                it.id.contains(text, true) ||
+                it.name.contains(text, true) ||
+                it.description.contains(text, true) ||
+                it.author.contains(text, true) ||
+                it.version.contains(text, true)
+            }
+        }
+
+        _uiState.update {
+            it.copy(
+                searchResults = result,
+                searchStatus = it.searchStatus.copy(
+                    resultStatus = if (result.isEmpty()) SearchStatus.ResultStatus.EMPTY else SearchStatus.ResultStatus.SHOW
+                )
+            )
+        }
     }
 
     data class ModuleInfo(

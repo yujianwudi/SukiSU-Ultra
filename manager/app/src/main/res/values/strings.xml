@@ -251,9 +251,6 @@
     <string name="apply_config">Apply Configuration</string>
     <string name="config_applied">Configuration applied to kernel</string>
     <string name="mnt_detach">MNT_DETACH</string>
-    <!-- Personalization Settings -->
-    <string name="personalization">Personalization</string>
-    <string name="personalization_summary">Customize the app\'s appearance and theme</string>
     <!-- Kernel Flash Progress Related -->
     <string name="horizon_flash_complete">Flash Complete</string>
     <string name="horizon_preparing">Preparing…</string>

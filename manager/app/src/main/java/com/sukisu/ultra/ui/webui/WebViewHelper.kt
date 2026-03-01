@@ -20,8 +20,8 @@ import androidx.webkit.WebViewAssetLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.sukisu.ultra.R
+import com.sukisu.ultra.data.repository.ModuleRepositoryImpl
 import com.sukisu.ultra.ui.util.createRootShell
-import com.sukisu.ultra.ui.viewmodel.ModuleViewModel
 import com.sukisu.ultra.ui.viewmodel.SuperUserViewModel
 import java.io.File
 
@@ -33,12 +33,9 @@ internal suspend fun prepareWebView(
     webUIState: WebUIState,
 ) {
     withContext(Dispatchers.IO) {
-        val viewModel = ModuleViewModel()
-        if (viewModel.moduleList.isEmpty()) {
-            viewModel.loadModuleList()
-        }
-
-        val moduleInfo = viewModel.moduleList.find { info -> info.id == moduleId }
+        val repo = ModuleRepositoryImpl()
+        val modules = repo.getModules().getOrDefault(emptyList())
+        val moduleInfo = modules.find { info -> info.id == moduleId }
 
         if (moduleInfo == null) {
             withContext(Dispatchers.Main) {
@@ -91,7 +88,12 @@ internal suspend fun prepareWebView(
                 .setDomain("mui.kernelsu.org")
                 .addPathHandler(
                     "/",
-                    SuFilePathHandler(activity, webRoot, shell, { webUIState.currentInsets }, { enable -> webUIState.isInsetsEnabled = enable })
+                    SuFilePathHandler(
+                        activity,
+                        webRoot,
+                        shell,
+                        { webUIState.currentInsets },
+                        { enable -> webUIState.isInsetsEnabled = enable })
                 )
                 .build()
 
@@ -134,7 +136,13 @@ internal suspend fun prepareWebView(
                     return true
                 }
 
-                override fun onJsPrompt(view: WebView?, url: String?, message: String?, defaultValue: String?, result: JsPromptResult?): Boolean {
+                override fun onJsPrompt(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    defaultValue: String?,
+                    result: JsPromptResult?
+                ): Boolean {
                     if (message == null || result == null || defaultValue == null) return false
                     webUIState.uiEvent = WebUIEvent.ShowPrompt(message, defaultValue, result)
                     return true

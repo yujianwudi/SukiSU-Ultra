@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui.screen
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -12,57 +13,55 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.CoroutineScope
-import androidx.compose.ui.layout.SubcomposeLayout
-import androidx.compose.foundation.isSystemInDarkTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import com.sukisu.ultra.ui.component.*
-import com.sukisu.ultra.ui.viewmodel.KpmViewModel
-import com.sukisu.ultra.ui.util.*
-import java.io.File
 import androidx.core.content.edit
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sukisu.ultra.R
-import java.io.FileInputStream
-import java.net.*
-import android.app.Activity
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.LayoutDirection
+import com.sukisu.ultra.ui.component.ConfirmDialogHandle
+import com.sukisu.ultra.ui.component.ConfirmResult
+import com.sukisu.ultra.ui.component.SearchBox
+import com.sukisu.ultra.ui.component.SearchPager
+import com.sukisu.ultra.ui.component.rememberConfirmDialog
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
+import com.sukisu.ultra.ui.util.*
+import com.sukisu.ultra.ui.viewmodel.KpmViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -71,40 +70,38 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import java.io.File
+import java.io.FileInputStream
+import java.net.URLEncoder
 
-/**
- * KPM 管理界面
- * 以下内核模块功能由KernelPatch开发，经过修改后加入SukiSU Ultra的内核模块功能
- * 开发者：ShirkNeko, Liaokong
- */
 @Composable
 fun KpmScreen(
     viewModel: KpmViewModel = viewModel(),
     bottomInnerPadding: Dp = 0.dp
 ) {
     val context = LocalContext.current
-    val enableBlur = LocalEnableBlur.current
     val scope = rememberCoroutineScope()
     val confirmDialog = rememberConfirmDialog()
 
+    val uiState by viewModel.uiState.collectAsState()
+    val searchStatus = uiState.searchStatus
+
+    val enableBlur = LocalEnableBlur.current
     val listState = rememberLazyListState()
-    var fabVisible by remember { mutableStateOf(true) }
-    var scrollDistance by remember { mutableFloatStateOf(0f) }
-    
-    val searchStatus by viewModel.searchStatus
-    val scrollBehavior = MiuixScrollBehavior()
-    val dynamicTopPadding by remember {
-        derivedStateOf { 12.dp * (1f - scrollBehavior.state.collapsedFraction) }
-    }
 
     val showEmptyState by remember {
         derivedStateOf {
-            viewModel.moduleList.isEmpty() && searchStatus.searchText.isEmpty()
+            uiState.moduleList.isEmpty() && searchStatus.searchText.isEmpty() && !uiState.isRefreshing
         }
     }
 
-    val moduleConfirmContentMap = viewModel.moduleList.associate { module ->
+    val moduleConfirmContentMap = uiState.moduleList.associate { module ->
         module.id to stringResource(R.string.confirm_uninstall_content, module.id)
+    }
+
+    val scrollBehavior = MiuixScrollBehavior()
+    val dynamicTopPadding by remember {
+        derivedStateOf { 12.dp * (1f - scrollBehavior.state.collapsedFraction) }
     }
 
     val hazeState = remember { HazeState() }
@@ -152,7 +149,7 @@ fun KpmScreen(
     LaunchedEffect(showInstallModeDialog) {
         showInstallDialogState.value = showInstallModeDialog
     }
-    
+
     fun clearInstallState() {
         runCatching {
             showInstallDialogState.value = false
@@ -279,7 +276,7 @@ fun KpmScreen(
                 tempFile.delete()
                 return@launch
             }
-            
+
             tempFileForInstall = tempFile
             showInstallModeDialog = true
         }
@@ -292,22 +289,25 @@ fun KpmScreen(
         }
     }
 
+    val scrollDistance = remember { mutableFloatStateOf(0f) }
+    var fabVisible by remember { mutableStateOf(true) }
+
     val nestedScrollConnection = remember(listState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (isScrolledToEnd(listState)) return Offset.Zero
 
-                scrollDistance += available.y
+                scrollDistance.floatValue += available.y
 
-                if (scrollDistance <= -50f && fabVisible) {
+                if (scrollDistance.floatValue <= -50f && fabVisible) {
                     fabVisible = false
-                    scrollDistance = 0f
+                    scrollDistance.floatValue = 0f
                     return Offset(0f, available.y)
                 }
 
-                if (scrollDistance >= 50f && !fabVisible) {
+                if (scrollDistance.floatValue >= 50f && !fabVisible) {
                     fabVisible = true
-                    scrollDistance = 0f
+                    scrollDistance.floatValue = 0f
                     return Offset(0f, available.y)
                 }
 
@@ -369,15 +369,17 @@ fun KpmScreen(
         },
         popupHost = {
             searchStatus.SearchPager(
+                onSearchStatusChange = viewModel::updateSearchStatus,
                 defaultResult = {},
                 searchBarTopPadding = dynamicTopPadding,
             ) {
                 item {
                     Spacer(Modifier.height(6.dp))
                 }
-                items(viewModel.moduleList) { module ->
+                items(uiState.moduleList) { module ->
                     KpmModuleItem(
                         module = module,
+                        viewModel = viewModel,
                         onUninstall = {
                             scope.launch {
                                 val confirmContent = moduleConfirmContentMap[module.id] ?: ""
@@ -395,9 +397,6 @@ fun KpmScreen(
                                     confirmContent = confirmContent
                                 )
                             }
-                        },
-                        onControl = {
-                            viewModel.loadModuleDetail(module.id)
                         }
                     )
                 }
@@ -410,7 +409,7 @@ fun KpmScreen(
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         val layoutDirection = LocalLayoutDirection.current
-        
+
         if (showEmptyState) {
             EmptyStateView(
                 innerPadding = innerPadding,
@@ -419,6 +418,7 @@ fun KpmScreen(
             )
         } else {
             searchStatus.SearchBox(
+                onSearchStatusChange = viewModel::updateSearchStatus,
                 searchBarTopPadding = dynamicTopPadding,
                 contentPadding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
@@ -427,7 +427,7 @@ fun KpmScreen(
                 ),
                 hazeState = hazeState,
                 hazeStyle = hazeStyle
-            ) { boxHeight  ->
+            ) { boxHeight ->
                 KpmList(
                     viewModel = viewModel,
                     scope = scope,
@@ -575,11 +575,13 @@ private fun KpmList(
     val sharedPreferences = context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
     var isNoticeClosed by remember { mutableStateOf(sharedPreferences.getBoolean("is_notice_closed", false)) }
 
+    val uiState by viewModel.uiState.collectAsState()
+
     val refreshPulling = stringResource(R.string.refresh_pulling)
     val refreshRelease = stringResource(R.string.refresh_release)
     val refreshRefresh = stringResource(R.string.refresh_refresh)
     val refreshComplete = stringResource(R.string.refresh_complete)
-    
+
     var isRefreshing by rememberSaveable { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
     val refreshTexts = remember {
@@ -590,7 +592,7 @@ private fun KpmList(
             refreshComplete,
         )
     }
-    
+
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
             delay(350)
@@ -671,10 +673,11 @@ private fun KpmList(
                     }
                 }
             }
-            
-            items(viewModel.moduleList) { module ->
+
+            items(uiState.moduleList) { module ->
                 KpmModuleItem(
                     module = module,
+                    viewModel = viewModel,
                     onUninstall = {
                         scope.launch {
                             val confirmContent = moduleConfirmContentMap[module.id] ?: ""
@@ -692,9 +695,6 @@ private fun KpmList(
                                 confirmContent = confirmContent
                             )
                         }
-                    },
-                    onControl = {
-                        viewModel.loadModuleDetail(module.id)
                     }
                 )
             }
@@ -708,10 +708,9 @@ private fun KpmList(
 @Composable
 private fun KpmModuleItem(
     module: KpmViewModel.ModuleInfo,
-    onUninstall: () -> Unit,
-    onControl: () -> Unit
+    viewModel: KpmViewModel,
+    onUninstall: () -> Unit
 ) {
-    val viewModel: KpmViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val successMessage = stringResource(R.string.kpm_control_success)
@@ -780,7 +779,6 @@ private fun KpmModuleItem(
                                     }
                                     showToast(message)
                                     showDialogState.value = false
-                                    onControl()
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -947,7 +945,7 @@ private fun extractModuleName(file: File): String? {
 private fun isValidKpmFile(file: File, mimeType: String?): Boolean {
     val isCorrectMimeType = mimeType == null || mimeType.contains("application/octet-stream")
     if (isCorrectMimeType) return true
-    
+
     return try {
         checkStringsCommand(file) >= 1 || isElfFile(file)
     } catch (e: Exception) {

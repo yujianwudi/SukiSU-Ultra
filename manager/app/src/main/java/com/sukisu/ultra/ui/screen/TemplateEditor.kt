@@ -50,7 +50,6 @@ import com.sukisu.ultra.ui.util.deleteAppProfileTemplate
 import com.sukisu.ultra.ui.util.getAppProfileTemplate
 import com.sukisu.ultra.ui.util.setAppProfileTemplate
 import com.sukisu.ultra.ui.viewmodel.TemplateViewModel
-import com.sukisu.ultra.ui.viewmodel.toJSON
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
