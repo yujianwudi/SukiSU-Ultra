@@ -74,6 +74,7 @@ import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.util.rememberKpmAvailable
 import com.sukisu.ultra.ui.util.getSuSFSStatus
+import com.sukisu.ultra.ui.util.toggleLauncherIcon
 import com.sukisu.ultra.ui.viewmodel.SettingsViewModel
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -112,8 +113,6 @@ fun SettingPager(
         backgroundColor = colorScheme.surface,
         tint = HazeTint(colorScheme.surface.copy(0.8f))
     )
-
-    val isKpmAvailable = rememberKpmAvailable()
 
     Scaffold(
         topBar = {
@@ -190,31 +189,6 @@ fun SettingPager(
                             checked = uiState.checkModuleUpdate,
                             onCheckedChange = {
                                 viewModel.setCheckModuleUpdate(it)
-                            }
-                        )
-                    }
-                }
-
-                KsuIsValid {
-                    val toolsTitle = stringResource(id = R.string.settings_tools)
-                    Card(
-                        modifier = Modifier
-                            .padding(top = 12.dp)
-                            .fillMaxWidth(),
-                    ) {
-                        SuperArrow(
-                            title = toolsTitle,
-                            summary = stringResource(id = R.string.settings_tools_summary),
-                            startAction = {
-                                Icon(
-                                    Icons.Rounded.DeveloperMode,
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    contentDescription = toolsTitle,
-                                    tint = colorScheme.onBackground
-                                )
-                            },
-                            onClick = {
-                                navigator.push(Route.Tool)
                             }
                         )
                     }
@@ -331,6 +305,8 @@ fun SettingPager(
                             checked = uiState.alternativeIcon,
                             onCheckedChange = {
                                 viewModel.setAlternativeIcon(it)
+                                toggleLauncherIcon(context, it)
+                                activity?.recreate()
                             }
                         )
                     }
@@ -478,9 +454,31 @@ fun SettingPager(
                             }
                         )
                     }
+                    val toolsTitle = stringResource(id = R.string.settings_tools)
+                    Card(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth()
+                    ) {
+                        SuperArrow(
+                            title = toolsTitle,
+                            summary = stringResource(id = R.string.settings_tools_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.DeveloperMode,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = toolsTitle,
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            onClick = {
+                                navigator.push(Route.Tool)
+                            }
+                        )
+                    }
                 }
 
-                if (isKpmAvailable) {
+                if (rememberKpmAvailable()) {
                     Card(
                         modifier = Modifier
                             .padding(top = 12.dp)
