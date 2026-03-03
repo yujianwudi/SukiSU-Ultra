@@ -18,21 +18,22 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.sukisu.ultra.R
-import com.sukisu.ultra.ui.component.ConfirmResult
-import com.sukisu.ultra.ui.component.rememberConfirmDialog
 import com.sukisu.ultra.ui.kernelFlash.KpmPatchOption
-import com.sukisu.ultra.ui.kernelFlash.KpmPatchSelectionDialog
-import com.sukisu.ultra.ui.kernelFlash.component.SlotSelectionDialog
-import com.sukisu.ultra.ui.screen.FlashIt
 import com.sukisu.ultra.ui.util.getFileName
 import com.sukisu.ultra.ui.util.isAbDevice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import com.sukisu.ultra.Natives
+import com.sukisu.ultra.ui.component.dialog.ConfirmResult
+import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
+import com.sukisu.ultra.ui.kernelFlash.KpmPatchSelectionDialog
+import com.sukisu.ultra.ui.kernelFlash.component.SlotSelectionDialog
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Route
+import com.sukisu.ultra.ui.screen.flash.FlashIt
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.io.File
 
 private sealed class DialogState {
     data object None : DialogState()
@@ -126,6 +127,9 @@ fun HandleZipFileIntent(
         
         if (zipUris.isNotEmpty()) {
             processed = true
+
+            activity.intent.data = null
+            activity.intent.type = null
             
             val zipUrisList = zipUris.toList()
             
@@ -179,7 +183,17 @@ fun HandleZipFileIntent(
                     if (isSafeMode) {
                         Toast.makeText(context, isSafeModeString, Toast.LENGTH_SHORT).show()
                     } else {
-                        navigator.push(Route.Flash((FlashIt.FlashModules(finalModuleUris))))
+                        val cachedUris = withContext(Dispatchers.IO) {
+                            finalModuleUris.mapNotNull { uri ->
+                                copyUriToCache(context, uri)
+                            }
+                        }
+                        
+                        if (cachedUris.isNotEmpty()) {
+                            navigator.push(Route.Flash((FlashIt.FlashModules(cachedUris))))
+                        } else {
+                            Toast.makeText(context, R.string.zip_file_unknown, Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
                 
@@ -205,9 +219,13 @@ fun HandleZipFileIntent(
             SlotSelectionDialog(
                 show = true,
                 onDismiss = { },
-                onSlotSelected = { _ ->
+                onSlotSelected = { selectedSlot ->
                     scope.launch {
                         delay(300)
+                        dialogState = DialogState.KpmSelection(
+                            kernelUri = state.kernelUri,
+                            slot = selectedSlot
+                        )
                     }
                 }
             )
@@ -289,5 +307,27 @@ fun detectZipType(context: Context, uri: Uri): ZipType {
         e.printStackTrace()
         // 如果是 APK 文件但读取失败，仍然当作模块处理
         if (isApk) ZipType.MODULE else ZipType.UNKNOWN
+    }
+}
+
+/**
+ * 将外部 Uri 的内容复制到内部缓存，返回缓存后的 Uri
+ */
+private fun copyUriToCache(context: Context, uri: Uri): Uri? {
+    return try {
+        val fileName = uri.getFileName(context) ?: "module_${System.currentTimeMillis()}.zip"
+        val cacheDir = context.cacheDir
+        val destFile = File(cacheDir, fileName)
+        
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            destFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        Uri.fromFile(destFile)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }

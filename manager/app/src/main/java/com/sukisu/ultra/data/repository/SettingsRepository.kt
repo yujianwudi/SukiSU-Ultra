@@ -1,6 +1,7 @@
 package com.sukisu.ultra.data.repository
 
 interface SettingsRepository {
+    var uiMode: String
     var checkUpdate: Boolean
     var checkModuleUpdate: Boolean
     var alternativeIcon : Boolean

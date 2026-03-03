@@ -7,8 +7,8 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import com.sukisu.ultra.ui.screen.FlashIt
-import com.sukisu.ultra.ui.screen.RepoModuleArg
+import com.sukisu.ultra.ui.screen.flash.FlashIt
+import com.sukisu.ultra.ui.screen.modulerepo.RepoModuleArg
 import com.sukisu.ultra.ui.viewmodel.TemplateViewModel
 
 object FlashItSerializer : BaseParcelableSerializer<FlashIt>(FlashIt::class.java)

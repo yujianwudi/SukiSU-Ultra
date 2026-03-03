@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -25,11 +27,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -49,38 +51,41 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.sukisu.ultra.Natives
-import com.sukisu.ultra.ui.component.BottomBar
-import com.sukisu.ultra.ui.component.MainPagerState
-import com.sukisu.ultra.ui.component.rememberMainPagerState
+import com.sukisu.ultra.ui.component.bottombar.BottomBar
+import com.sukisu.ultra.ui.component.bottombar.MainPagerState
+import com.sukisu.ultra.ui.component.bottombar.rememberMainPagerState
 import com.sukisu.ultra.ui.kernelFlash.KernelFlashScreen
 import com.sukisu.ultra.ui.navigation3.HandleDeepLink
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.navigation3.rememberNavigator
-import com.sukisu.ultra.ui.screen.AboutScreen
-import com.sukisu.ultra.ui.screen.AppProfileScreen
-import com.sukisu.ultra.ui.screen.AppProfileTemplateScreen
-import com.sukisu.ultra.ui.screen.ExecuteModuleActionScreen
-import com.sukisu.ultra.ui.screen.FlashScreen
-import com.sukisu.ultra.ui.screen.HomePager
-import com.sukisu.ultra.ui.screen.InstallScreen
-import com.sukisu.ultra.ui.screen.KpmScreen
-import com.sukisu.ultra.ui.screen.ModulePager
-import com.sukisu.ultra.ui.screen.ModuleRepoDetailScreen
-import com.sukisu.ultra.ui.screen.ModuleRepoScreen
-import com.sukisu.ultra.ui.screen.SettingPager
-import com.sukisu.ultra.ui.screen.SulogScreen
-import com.sukisu.ultra.ui.screen.SuperUserPager
-import com.sukisu.ultra.ui.screen.TemplateEditorScreen
-import com.sukisu.ultra.ui.screen.UmountManagerScreen
-import com.sukisu.ultra.ui.screen.settings.Tools
+import com.sukisu.ultra.ui.screen.about.AboutScreen
+import com.sukisu.ultra.ui.screen.appprofile.AppProfileScreen
+import com.sukisu.ultra.ui.screen.colorpalette.ColorPaletteScreenMaterial
+import com.sukisu.ultra.ui.screen.executemoduleaction.ExecuteModuleActionScreen
+import com.sukisu.ultra.ui.screen.flash.FlashScreen
+import com.sukisu.ultra.ui.screen.home.HomePager
+import com.sukisu.ultra.ui.screen.install.InstallScreen
+import com.sukisu.ultra.ui.screen.kpm.KpmScreen
+import com.sukisu.ultra.ui.screen.module.ModulePager
+import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoDetailScreen
+import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoScreen
+import com.sukisu.ultra.ui.screen.settings.SettingPager
+import com.sukisu.ultra.ui.screen.settings.tools.ToolsScreen
+import com.sukisu.ultra.ui.screen.sulog.SulogScreen
+import com.sukisu.ultra.ui.screen.superuser.SuperUserPager
+import com.sukisu.ultra.ui.screen.template.AppProfileTemplateScreen
+import com.sukisu.ultra.ui.screen.templateeditor.TemplateEditorScreen
+import com.sukisu.ultra.ui.screen.umountmanager.UmountManagerScreen
 import com.sukisu.ultra.ui.susfs.SuSFSConfigScreen
 import com.sukisu.ultra.ui.theme.KernelSUTheme
 import com.sukisu.ultra.ui.theme.LocalColorMode
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBar
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBarBlur
+import com.sukisu.ultra.ui.theme.ThemeController
+import com.sukisu.ultra.ui.util.LocalSnackbarHost
 import com.sukisu.ultra.ui.util.install
 import com.sukisu.ultra.ui.webui.WebUIActivity
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -99,22 +104,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val context = LocalActivity.current ?: this
-            val prefs = context.getSharedPreferences("settings", MODE_PRIVATE)
-            var colorMode by remember { mutableIntStateOf(prefs.getInt("color_mode", 0)) }
-            var keyColorInt by remember { mutableIntStateOf(prefs.getInt("key_color", 0)) }
+            val prefs = remember { context.getSharedPreferences("settings", MODE_PRIVATE) }
+            var appSettings by remember { mutableStateOf(ThemeController.getAppSettings(context)) }
             var pageScale by remember { mutableFloatStateOf(prefs.getFloat("page_scale", 1f)) }
             var enableBlur by remember { mutableStateOf(prefs.getBoolean("enable_blur", true)) }
             var enableFloatingBottomBar by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar", false)) }
-            var enableFloatingBottomBarBlur by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar_blur", false)) }
-
-
-            val keyColor = remember(keyColorInt) { if (keyColorInt == 0) null else Color(keyColorInt) }
-
-            val darkMode = when (colorMode) {
-                2, 5 -> true
-                0, 3 -> isSystemInDarkTheme()
-                else -> false
+            var enableFloatingBottomBarBlur by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar_blur", true)) }
+            var uiModeValue by remember { mutableStateOf(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE) }
+            val uiMode = remember(uiModeValue) {
+                UiMode.fromValue(uiModeValue)
             }
+
+            val darkMode = appSettings.colorMode.isDark || (appSettings.colorMode.isSystem && isSystemInDarkTheme())
 
             DisposableEffect(prefs, darkMode) {
                 enableEdgeToEdge(
@@ -133,13 +134,12 @@ class MainActivity : ComponentActivity() {
 
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
                     when (key) {
-                        "color_mode" -> colorMode = prefs.getInt("color_mode", 0)
-                        "key_color" -> keyColorInt = prefs.getInt("key_color", 0)
+                        "color_mode", "key_color", "color_style", "color_spec" -> appSettings = ThemeController.getAppSettings(context)
                         "page_scale" -> pageScale = prefs.getFloat("page_scale", 1f)
                         "enable_blur" -> enableBlur = prefs.getBoolean("enable_blur", true)
                         "enable_floating_bottom_bar" -> enableFloatingBottomBar = prefs.getBoolean("enable_floating_bottom_bar", false)
-                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur =
-                            prefs.getBoolean("enable_floating_bottom_bar_blur", false)
+                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur = prefs.getBoolean("enable_floating_bottom_bar_blur", true)
+                        "ui_mode" -> uiModeValue = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE
                     }
                 }
                 prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -147,6 +147,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val navigator = rememberNavigator(Route.Main)
+            val snackBarHostState = remember { SnackbarHostState() }
             val systemDensity = LocalDensity.current
             val density = remember(systemDensity, pageScale) {
                 Density(systemDensity.density * pageScale, systemDensity.fontScale)
@@ -154,12 +155,14 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(
                 LocalNavigator provides navigator,
                 LocalDensity provides density,
-                LocalColorMode provides colorMode,
+                LocalColorMode provides appSettings.colorMode.value,
                 LocalEnableBlur provides enableBlur,
                 LocalEnableFloatingBottomBar provides enableFloatingBottomBar,
                 LocalEnableFloatingBottomBarBlur provides enableFloatingBottomBarBlur,
+                LocalUiMode provides uiMode,
+                LocalSnackbarHost provides snackBarHostState
             ) {
-                KernelSUTheme(colorMode = colorMode, keyColor = keyColor) {
+                KernelSUTheme(appSettings = appSettings, uiMode = uiMode) {
 
                     HandleDeepLink(
                         intentState = intentState.collectAsState(),
@@ -196,6 +199,7 @@ class MainActivity : ComponentActivity() {
                             entryProvider = entryProvider {
                                 entry<Route.Main> { MainScreen() }
                                 entry<Route.About> { AboutScreen() }
+                                entry<Route.ColorPalette> { ColorPaletteScreenMaterial() }
                                 entry<Route.AppProfileTemplate> { AppProfileTemplateScreen() }
                                 entry<Route.TemplateEditor> { key -> TemplateEditorScreen(key.template, key.readOnly) }
                                 entry<Route.AppProfile> { key -> AppProfileScreen(key.uid, key.packageName) }
@@ -211,7 +215,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.KernelFlash> { key -> KernelFlashScreen(key.kernelUri, key.selectedSlot, key.kpmPatchEnabled, key.kpmUndoPatch) }
                                 entry<Route.Kpm> { KpmScreen() }
                                 entry<Route.SuSFS> { SuSFSConfigScreen() }
-                                entry<Route.Tool> { Tools() }
+                                entry<Route.Tool> { ToolsScreen() }
                                 entry<Route.UmountManager> { UmountManagerScreen() }
                                 entry<Route.Sulog> { SulogScreen() }
                             }
@@ -238,12 +242,20 @@ fun MainScreen() {
     val enableBlur = LocalEnableBlur.current
     val enableFloatingBottomBar = LocalEnableFloatingBottomBar.current
     val enableFloatingBottomBarBlur = LocalEnableFloatingBottomBarBlur.current
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
+    var currentPage by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = currentPage, pageCount = { 4 })
+    LaunchedEffect(pagerState.currentPage) {
+        currentPage = pagerState.currentPage
+    }
     val mainPagerState = rememberMainPagerState(pagerState)
     val isManager = Natives.isManager
     val isFullFeatured = isManager && !Natives.requireNewKernel()
     var userScrollEnabled by remember(isFullFeatured) { mutableStateOf(isFullFeatured) }
-    val surfaceColor = MiuixTheme.colorScheme.surface
+    val uiMode = LocalUiMode.current
+    val surfaceColor = when (uiMode) {
+        UiMode.Material -> MaterialTheme.colorScheme.surface // Haze is not used in Material, this is just a placeholder
+        UiMode.Miuix -> MiuixTheme.colorScheme.surface
+    }
     val hazeState = remember { HazeState() }
     val hazeStyle = if (enableBlur) {
         HazeStyle(
@@ -277,7 +289,7 @@ fun MainScreen() {
                         hazeState = hazeState,
                         hazeStyle = hazeStyle,
                         backdrop = backdrop,
-                        modifier = Modifier.align(Alignment.BottomCenter)
+                        modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             },
@@ -334,6 +346,9 @@ private fun ShortcutIntentHandler(
     LaunchedEffect(intentStateValue) {
         val intent = activity.intent
         val type = intent?.getStringExtra("shortcut_type") ?: return@LaunchedEffect
+
+        intent.removeExtra("shortcut_type")
+
         when (type) {
             "module_action" -> {
                 val moduleId = intent.getStringExtra("module_id") ?: return@LaunchedEffect

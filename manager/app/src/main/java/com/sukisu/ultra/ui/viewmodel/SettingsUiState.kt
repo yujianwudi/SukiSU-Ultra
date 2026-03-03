@@ -1,6 +1,9 @@
 package com.sukisu.ultra.ui.viewmodel
 
+import com.sukisu.ultra.ui.UiMode
+
 data class SettingsUiState(
+    val uiMode: String = UiMode.DEFAULT_VALUE,
     val checkUpdate: Boolean = true,
     val checkModuleUpdate: Boolean = true,
     val alternativeIcon : Boolean = false,
