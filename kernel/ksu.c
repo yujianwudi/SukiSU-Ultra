@@ -40,6 +40,7 @@ void sukisu_custom_config_exit(void)
 {
 }
 
+NO_STACK_PROTECTOR_WORKAROUND
 int __init kernelsu_init(void)
 {
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
