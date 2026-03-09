@@ -45,7 +45,10 @@ import com.sukisu.ultra.ui.susfs.content.SusMapsContent
 import com.sukisu.ultra.ui.susfs.content.SusPathsContent
 import com.sukisu.ultra.ui.susfs.util.SuSFSManager
 import com.sukisu.ultra.ui.util.isAbDevice
+import com.sukisu.ultra.ui.susfs.viewmodel.SuSFSViewModel
+import com.sukisu.ultra.ui.susfs.viewmodel.SuSFSUiState
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.extra.SuperDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -76,7 +79,6 @@ enum class SuSFSTab(val displayNameRes: Int) {
 fun SuSFSConfigScreen() {
     val navigator = LocalNavigator.current
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val scrollBehavior = MiuixScrollBehavior()
     val hazeState = remember { HazeState() }
     val hazeStyle = HazeStyle(
@@ -84,255 +86,127 @@ fun SuSFSConfigScreen() {
         tint = HazeTint(colorScheme.surface.copy(0.8f))
     )
 
-    var selectedTab by remember { mutableStateOf(SuSFSTab.BASIC_SETTINGS) }
-    var unameValue by remember { mutableStateOf("") }
-    var buildTimeValue by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var showConfirmReset by remember { mutableStateOf(false) }
-    var autoStartEnabled by remember { mutableStateOf(false) }
-    var executeInPostFsData by remember { mutableStateOf(false) }
-    var enableHideBl by remember { mutableStateOf(true) }
-    var enableCleanupResidue by remember { mutableStateOf(false) }
-    var enableAvcLogSpoofing by remember { mutableStateOf(false) }
-
-    // 槽位信息相关状态
-    var slotInfoList by remember { mutableStateOf(emptyList<SuSFSManager.SlotInfo>()) }
-    var currentActiveSlot by remember { mutableStateOf("") }
-    var isLoadingSlotInfo by remember { mutableStateOf(false) }
-    var showSlotInfoDialog by remember { mutableStateOf(false) }
-
-    // 路径管理相关状态
-    var susPaths by remember { mutableStateOf(emptySet<String>()) }
-    var susLoopPaths by remember { mutableStateOf(emptySet<String>()) }
-    var susMaps by remember { mutableStateOf(emptySet<String>()) }
-    var androidDataPath by remember { mutableStateOf("") }
-    var sdcardPath by remember { mutableStateOf("") }
-
-    // SUS挂载隐藏控制状态
-    var hideSusMountsForAllProcs by remember { mutableStateOf(true) }
-
-    // Kstat配置相关状态
-    var kstatConfigs by remember { mutableStateOf(emptySet<String>()) }
-    var addKstatPaths by remember { mutableStateOf(emptySet<String>()) }
-
-    // 启用功能状态相关
-    var enabledFeatures by remember { mutableStateOf(emptyList<SuSFSManager.EnabledFeature>()) }
-    var isLoadingFeatures by remember { mutableStateOf(false) }
-
-    // 应用列表相关状态
-    var installedApps by remember { mutableStateOf(emptyList<SuSFSManager.AppInfo>()) }
-
-    // 对话框状态
-    var showAddPathDialog by remember { mutableStateOf(false) }
-    var showAddLoopPathDialog by remember { mutableStateOf(false) }
-    var showAddSusMapDialog by remember { mutableStateOf(false) }
-    var showAddAppPathDialog by remember { mutableStateOf(false) }
-    var showAddKstatStaticallyDialog by remember { mutableStateOf(false) }
-    var showAddKstatDialog by remember { mutableStateOf(false) }
-
-    // 编辑状态
-    var editingPath by remember { mutableStateOf<String?>(null) }
-    var editingLoopPath by remember { mutableStateOf<String?>(null) }
-    var editingSusMap by remember { mutableStateOf<String?>(null) }
-    var editingKstatConfig by remember { mutableStateOf<String?>(null) }
-    var editingKstatPath by remember { mutableStateOf<String?>(null) }
-
-    // 重置确认对话框状态
-    var showResetPathsDialog by remember { mutableStateOf(false) }
-    var showResetLoopPathsDialog by remember { mutableStateOf(false) }
-    var showResetSusMapsDialog by remember { mutableStateOf(false) }
-    var showResetKstatDialog by remember { mutableStateOf(false) }
-
+    val viewModel: SuSFSViewModel = viewModel()
+    val uiState: SuSFSUiState by viewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     var isNavigating by remember { mutableStateOf(false) }
 
     val allTabs = SuSFSTab.getAllTabs()
 
-    // 实时判断是否可以启用开机自启动
-    val canEnableAutoStart by remember {
-        derivedStateOf {
-            SuSFSManager.hasConfigurationForAutoStart(context)
-        }
-    }
-
-    // 加载启用功能状态
-    fun loadEnabledFeatures() {
-        coroutineScope.launch {
-            isLoadingFeatures = true
-            enabledFeatures = SuSFSManager.getEnabledFeatures(context)
-            isLoadingFeatures = false
-        }
-    }
-
-    // 加载应用列表
-    fun loadInstalledApps() {
-        coroutineScope.launch {
-            installedApps = SuSFSManager.getInstalledApps()
-        }
-    }
-
-    // 加载槽位信息
-    fun loadSlotInfo() {
-        coroutineScope.launch {
-            isLoadingSlotInfo = true
-            slotInfoList = SuSFSManager.getCurrentSlotInfo()
-            currentActiveSlot = SuSFSManager.getCurrentActiveSlot()
-            isLoadingSlotInfo = false
-        }
-    }
-
     // 加载当前配置
     LaunchedEffect(Unit) {
-        coroutineScope.launch {
-
-            unameValue = SuSFSManager.getUnameValue(context)
-            buildTimeValue = SuSFSManager.getBuildTimeValue(context)
-            autoStartEnabled = SuSFSManager.isAutoStartEnabled(context)
-            executeInPostFsData = SuSFSManager.getExecuteInPostFsData(context)
-            susPaths = SuSFSManager.getSusPaths(context)
-            susLoopPaths = SuSFSManager.getSusLoopPaths(context)
-            susMaps = SuSFSManager.getSusMaps(context)
-            androidDataPath = SuSFSManager.getAndroidDataPath(context)
-            sdcardPath = SuSFSManager.getSdcardPath(context)
-            kstatConfigs = SuSFSManager.getKstatConfigs(context)
-            addKstatPaths = SuSFSManager.getAddKstatPaths(context)
-            hideSusMountsForAllProcs = SuSFSManager.getHideSusMountsForAllProcs(context)
-            enableHideBl = SuSFSManager.getEnableHideBl(context)
-            enableCleanupResidue = SuSFSManager.getEnableCleanupResidue(context)
-            enableAvcLogSpoofing = SuSFSManager.getEnableAvcLogSpoofing(context)
-
-            loadSlotInfo()
-        }
+        viewModel.loadInitial(context)
     }
 
     // 当切换到启用功能状态标签页时加载数据
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == SuSFSTab.ENABLED_FEATURES) {
-            loadEnabledFeatures()
+    LaunchedEffect(uiState.selectedTab) {
+        if (uiState.selectedTab == SuSFSTab.ENABLED_FEATURES) {
+            viewModel.loadEnabledFeatures(context)
         }
     }
 
     // 当配置变化时，自动调整开机自启动状态
-    LaunchedEffect(canEnableAutoStart) {
-        if (!canEnableAutoStart && autoStartEnabled) {
-            autoStartEnabled = false
-            SuSFSManager.configureAutoStart(context, false)
+    LaunchedEffect(uiState.canEnableAutoStart, uiState.autoStartEnabled) {
+        if (!uiState.canEnableAutoStart && uiState.autoStartEnabled) {
+            viewModel.configureAutoStart(context, false)
         }
     }
 
 
     // 槽位信息对话框
     SlotInfoDialog(
-        showDialog = showSlotInfoDialog,
-        onDismiss = { showSlotInfoDialog = false },
-        slotInfoList = slotInfoList,
-        currentActiveSlot = currentActiveSlot,
-        isLoadingSlotInfo = isLoadingSlotInfo,
-        onRefresh = { loadSlotInfo() },
+        showDialog = uiState.showSlotInfoDialog,
+        onDismiss = { viewModel.showSlotInfoDialog(false) },
+        slotInfoList = uiState.slotInfoList,
+        currentActiveSlot = uiState.currentActiveSlot,
+        isLoadingSlotInfo = uiState.isLoadingSlotInfo,
+        onRefresh = { viewModel.loadSlotInfo(context) },
         onUseUname = { uname: String ->
-            unameValue = uname
-            showSlotInfoDialog = false
+            viewModel.updateUname(uname)
+            viewModel.showSlotInfoDialog(false)
         },
         onUseBuildTime = { buildTime: String ->
-            buildTimeValue = buildTime
-            showSlotInfoDialog = false
+            viewModel.updateBuildTime(buildTime)
+            viewModel.showSlotInfoDialog(false)
         }
     )
 
     // 各种对话框
     AddPathDialog(
-        showDialog = showAddPathDialog,
-        onDismiss = {
-            showAddPathDialog = false
-            editingPath = null
-        },
+        showDialog = uiState.showAddPathDialog,
+        onDismiss = { viewModel.closeAddPathDialog() },
         onConfirm = { path ->
-            val oldPath = editingPath
+            val oldPath = uiState.editingPath
             coroutineScope.launch {
-                isLoading = true
                 val success = if (oldPath != null) {
                     SuSFSManager.editSusPath(context, oldPath, path)
                 } else {
                     SuSFSManager.addSusPath(context, path)
                 }
                 if (success) {
-                    susPaths = SuSFSManager.getSusPaths(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddPathDialog = false
-                editingPath = null
+                viewModel.closeAddPathDialog()
             }
         },
-        isLoading = isLoading,
-        titleRes = if (editingPath != null) R.string.susfs_edit_sus_path else R.string.susfs_add_sus_path,
+        isLoading = uiState.isLoading,
+        titleRes = if (uiState.editingPath != null) R.string.susfs_edit_sus_path else R.string.susfs_add_sus_path,
         labelRes = R.string.susfs_path_label,
-        initialValue = editingPath ?: ""
+        initialValue = uiState.editingPath ?: ""
     )
 
     AddPathDialog(
-        showDialog = showAddLoopPathDialog,
-        onDismiss = {
-            showAddLoopPathDialog = false
-            editingLoopPath = null
-        },
+        showDialog = uiState.showAddLoopPathDialog,
+        onDismiss = { viewModel.closeAddLoopPathDialog() },
         onConfirm = { path ->
-            val oldPath = editingLoopPath
+            val oldPath = uiState.editingLoopPath
             coroutineScope.launch {
-                isLoading = true
                 val success = if (oldPath != null) {
                     SuSFSManager.editSusLoopPath(context, oldPath, path)
                 } else {
                     SuSFSManager.addSusLoopPath(context, path)
                 }
                 if (success) {
-                    susLoopPaths = SuSFSManager.getSusLoopPaths(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddLoopPathDialog = false
-                editingLoopPath = null
+                viewModel.closeAddLoopPathDialog()
             }
         },
-        isLoading = isLoading,
-        titleRes = if (editingLoopPath != null) R.string.susfs_edit_sus_loop_path else R.string.susfs_add_sus_loop_path,
+        isLoading = uiState.isLoading,
+        titleRes = if (uiState.editingLoopPath != null) R.string.susfs_edit_sus_loop_path else R.string.susfs_add_sus_loop_path,
         labelRes = R.string.susfs_loop_path_label,
-        initialValue = editingLoopPath ?: ""
+        initialValue = uiState.editingLoopPath ?: ""
     )
 
     AddPathDialog(
-        showDialog = showAddSusMapDialog,
-        onDismiss = {
-            showAddSusMapDialog = false
-            editingSusMap = null
-        },
+        showDialog = uiState.showAddSusMapDialog,
+        onDismiss = { viewModel.closeAddSusMapDialog() },
         onConfirm = { path ->
-            val oldPath = editingSusMap
+            val oldPath = uiState.editingSusMap
             coroutineScope.launch {
-                isLoading = true
                 val success = if (oldPath != null) {
                     SuSFSManager.editSusMap(context, oldPath, path)
                 } else {
                     SuSFSManager.addSusMap(context, path)
                 }
                 if (success) {
-                    susMaps = SuSFSManager.getSusMaps(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddSusMapDialog = false
-                editingSusMap = null
+                viewModel.closeAddSusMapDialog()
             }
         },
-        isLoading = isLoading,
-        titleRes = if (editingSusMap != null) R.string.susfs_edit_sus_map else R.string.susfs_add_sus_map,
+        isLoading = uiState.isLoading,
+        titleRes = if (uiState.editingSusMap != null) R.string.susfs_edit_sus_map else R.string.susfs_add_sus_map,
         labelRes = R.string.susfs_sus_map_label,
-        initialValue = editingSusMap ?: ""
+        initialValue = uiState.editingSusMap ?: ""
     )
 
     AddAppPathDialog(
-        showDialog = showAddAppPathDialog,
-        onDismiss = { showAddAppPathDialog = false },
+        showDialog = uiState.showAddAppPathDialog,
+        onDismiss = { viewModel.closeAddAppPathDialog() },
         onConfirm = { packageNames ->
             coroutineScope.launch {
-                isLoading = true
                 var successCount = 0
                 packageNames.forEach { packageName ->
                     if (SuSFSManager.addAppPaths(context, packageName)) {
@@ -340,29 +214,24 @@ fun SuSFSConfigScreen() {
                     }
                 }
                 if (successCount > 0) {
-                    susPaths = SuSFSManager.getSusPaths(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddAppPathDialog = false
+                viewModel.closeAddAppPathDialog()
             }
         },
-        isLoading = isLoading,
-        apps = installedApps,
-        onLoadApps = { loadInstalledApps() },
-        existingSusPaths = susPaths
+        isLoading = uiState.isLoading,
+        apps = uiState.installedApps,
+        onLoadApps = { viewModel.loadInstalledApps() },
+        existingSusPaths = uiState.susPaths
     )
 
 
     AddKstatStaticallyDialog(
-        showDialog = showAddKstatStaticallyDialog,
-        onDismiss = {
-            showAddKstatStaticallyDialog = false
-            editingKstatConfig = null
-        },
+        showDialog = uiState.showAddKstatStaticallyDialog,
+        onDismiss = { viewModel.closeAddKstatStaticallyDialog() },
         onConfirm = { path, ino, dev, nlink, size, atime, atimeNsec, mtime, mtimeNsec, ctime, ctimeNsec, blocks, blksize ->
-            val oldConfig = editingKstatConfig
+            val oldConfig = uiState.editingKstatConfig
             coroutineScope.launch {
-                isLoading = true
                 val success = if (oldConfig != null) {
                     SuSFSManager.editKstatConfig(
                         context,
@@ -388,149 +257,123 @@ fun SuSFSConfigScreen() {
                     )
                 }
                 if (success) {
-                    kstatConfigs = SuSFSManager.getKstatConfigs(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddKstatStaticallyDialog = false
-                editingKstatConfig = null
+                viewModel.closeAddKstatStaticallyDialog()
             }
         },
-        isLoading = isLoading,
-        initialConfig = editingKstatConfig ?: ""
+        isLoading = uiState.isLoading,
+        initialConfig = uiState.editingKstatConfig ?: ""
     )
 
     AddPathDialog(
-        showDialog = showAddKstatDialog,
-        onDismiss = {
-            showAddKstatDialog = false
-            editingKstatPath = null
-        },
+        showDialog = uiState.showAddKstatDialog,
+        onDismiss = { viewModel.closeAddKstatDialog() },
         onConfirm = { path ->
-            val oldPath = editingKstatPath
+            val oldPath = uiState.editingKstatPath
             coroutineScope.launch {
-                isLoading = true
                 val success = if (oldPath != null) {
                     SuSFSManager.editAddKstat(context, oldPath, path)
                 } else {
                     SuSFSManager.addKstat(context, path)
                 }
                 if (success) {
-                    addKstatPaths = SuSFSManager.getAddKstatPaths(context)
+                    viewModel.reloadConfig(context)
                 }
-                isLoading = false
-                showAddKstatDialog = false
-                editingKstatPath = null
+                viewModel.closeAddKstatDialog()
             }
         },
-        isLoading = isLoading,
-        titleRes = if (editingKstatPath != null) R.string.edit_kstat_path_title else R.string.add_kstat_path_title,
+        isLoading = uiState.isLoading,
+        titleRes = if (uiState.editingKstatPath != null) R.string.edit_kstat_path_title else R.string.add_kstat_path_title,
         labelRes = R.string.file_or_directory_path_label,
-        initialValue = editingKstatPath ?: ""
+        initialValue = uiState.editingKstatPath ?: ""
     )
 
     // 确认对话框
     ConfirmDialog(
-        showDialog = showConfirmReset,
-        onDismiss = { showConfirmReset = false },
+        showDialog = uiState.showConfirmReset,
+        onDismiss = { viewModel.toggleConfirmReset(false) },
         onConfirm = {
-            showConfirmReset = false
-            coroutineScope.launch {
-                isLoading = true
-                if (SuSFSManager.resetToDefault(context)) {
-                    unameValue = "default"
-                    buildTimeValue = "default"
-                    autoStartEnabled = false
-                }
-                isLoading = false
-            }
+            viewModel.resetAll(context)
         },
         titleRes = R.string.susfs_reset_confirm_title,
         messageRes = R.string.susfs_reset_confirm_title,
-        isLoading = isLoading
+        isLoading = uiState.isLoading
     )
 
     // 重置对话框
     ConfirmDialog(
-        showDialog = showResetPathsDialog,
-        onDismiss = { showResetPathsDialog = false },
+        showDialog = uiState.showResetPathsDialog,
+        onDismiss = { viewModel.toggleResetPathsDialog(false) },
         onConfirm = {
             coroutineScope.launch {
-                isLoading = true
                 SuSFSManager.saveSusPaths(context, emptySet())
-                susPaths = emptySet()
                 if (SuSFSManager.isAutoStartEnabled(context)) {
                     SuSFSManager.configureAutoStart(context, true)
                 }
-                isLoading = false
-                showResetPathsDialog = false
+                viewModel.reloadConfig(context)
+                viewModel.toggleResetPathsDialog(false)
             }
         },
         titleRes = R.string.susfs_reset_paths_title,
         messageRes = R.string.susfs_reset_paths_message,
-        isLoading = isLoading
+        isLoading = uiState.isLoading
     )
 
     ConfirmDialog(
-        showDialog = showResetLoopPathsDialog,
-        onDismiss = { showResetLoopPathsDialog = false },
+        showDialog = uiState.showResetLoopPathsDialog,
+        onDismiss = { viewModel.toggleResetLoopPathsDialog(false) },
         onConfirm = {
             coroutineScope.launch {
-                isLoading = true
                 SuSFSManager.saveSusLoopPaths(context, emptySet())
-                susLoopPaths = emptySet()
                 if (SuSFSManager.isAutoStartEnabled(context)) {
                     SuSFSManager.configureAutoStart(context, true)
                 }
-                isLoading = false
-                showResetLoopPathsDialog = false
+                viewModel.reloadConfig(context)
+                viewModel.toggleResetLoopPathsDialog(false)
             }
         },
         titleRes = R.string.susfs_reset_loop_paths_title,
         messageRes = R.string.susfs_reset_loop_paths_message,
-        isLoading = isLoading
+        isLoading = uiState.isLoading
     )
 
     ConfirmDialog(
-        showDialog = showResetSusMapsDialog,
-        onDismiss = { showResetSusMapsDialog = false },
+        showDialog = uiState.showResetSusMapsDialog,
+        onDismiss = { viewModel.toggleResetSusMapsDialog(false) },
         onConfirm = {
             coroutineScope.launch {
-                isLoading = true
                 SuSFSManager.saveSusMaps(context, emptySet())
-                susMaps = emptySet()
                 if (SuSFSManager.isAutoStartEnabled(context)) {
                     SuSFSManager.configureAutoStart(context, true)
                 }
-                isLoading = false
-                showResetSusMapsDialog = false
+                viewModel.reloadConfig(context)
+                viewModel.toggleResetSusMapsDialog(false)
             }
         },
         titleRes = R.string.susfs_reset_sus_maps_title,
         messageRes = R.string.susfs_reset_sus_maps_message,
-        isLoading = isLoading
+        isLoading = uiState.isLoading
     )
 
 
     ConfirmDialog(
-        showDialog = showResetKstatDialog,
-        onDismiss = { showResetKstatDialog = false },
+        showDialog = uiState.showResetKstatDialog,
+        onDismiss = { viewModel.toggleResetKstatDialog(false) },
         onConfirm = {
             coroutineScope.launch {
-                isLoading = true
                 SuSFSManager.saveKstatConfigs(context, emptySet())
                 SuSFSManager.saveAddKstatPaths(context, emptySet())
-                kstatConfigs = emptySet()
-                addKstatPaths = emptySet()
                 if (SuSFSManager.isAutoStartEnabled(context)) {
                     SuSFSManager.configureAutoStart(context, true)
                 }
-                isLoading = false
-                showResetKstatDialog = false
+                viewModel.reloadConfig(context)
+                viewModel.toggleResetKstatDialog(false)
             }
         },
         titleRes = R.string.reset_kstat_config_title,
         messageRes = R.string.reset_kstat_config_message,
-        isLoading = isLoading
+        isLoading = uiState.isLoading
     )
 
     // 主界面布局
@@ -588,10 +431,10 @@ fun SuSFSConfigScreen() {
                 ) {
                     items(allTabs.size) { index ->
                         val tab = allTabs[index]
-                        val isSelected = selectedTab == tab
+                        val isSelected = uiState.selectedTab == tab
                         Card(
                             modifier = Modifier
-                                .clickable { selectedTab = tab },
+                                .clickable { viewModel.setSelectedTab(tab) },
                             colors = CardDefaults.defaultColors(
                                 if (isSelected) {
                                     colorScheme.primaryContainer
@@ -622,274 +465,181 @@ fun SuSFSConfigScreen() {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // 标签页内容
-                when (selectedTab) {
+                when (uiState.selectedTab) {
                     SuSFSTab.BASIC_SETTINGS -> {
                         BasicSettingsContent(
-                            unameValue = unameValue,
-                            onUnameValueChange = { value -> unameValue = value },
-                            buildTimeValue = buildTimeValue,
-                            onBuildTimeValueChange = { value -> buildTimeValue = value },
-                            executeInPostFsData = executeInPostFsData,
-                            onExecuteInPostFsDataChange = { value -> executeInPostFsData = value },
-                            autoStartEnabled = autoStartEnabled,
-                            canEnableAutoStart = canEnableAutoStart,
-                            isLoading = isLoading,
+                            unameValue = uiState.unameValue,
+                            onUnameValueChange = { value -> viewModel.updateUname(value) },
+                            buildTimeValue = uiState.buildTimeValue,
+                            onBuildTimeValueChange = { value -> viewModel.updateBuildTime(value) },
+                            executeInPostFsData = uiState.executeInPostFsData,
+                            onExecuteInPostFsDataChange = { value -> viewModel.setExecuteInPostFsData(value) },
+                            autoStartEnabled = uiState.autoStartEnabled,
+                            canEnableAutoStart = uiState.canEnableAutoStart,
+                            isLoading = uiState.isLoading,
                             onAutoStartToggle = { enabled: Boolean ->
-                                if (canEnableAutoStart) {
-                                    coroutineScope.launch {
-                                        isLoading = true
-                                        if (SuSFSManager.configureAutoStart(context, enabled)) {
-                                            autoStartEnabled = enabled
-                                        }
-                                        isLoading = false
-                                    }
-                                }
+                                viewModel.configureAutoStart(context, enabled)
                             },
-                            onShowSlotInfo = { showSlotInfoDialog = true },
+                            onShowSlotInfo = {
+                                viewModel.showSlotInfoDialog(true)
+                                viewModel.loadSlotInfo(context)
+                            },
                             context = context,
-                            enableHideBl = enableHideBl,
+                            enableHideBl = uiState.enableHideBl,
                             onEnableHideBlChange = { enabled: Boolean ->
-                                enableHideBl = enabled
-                                SuSFSManager.saveEnableHideBl(context, enabled)
-                                if (SuSFSManager.isAutoStartEnabled(context)) {
-                                    coroutineScope.launch {
-                                        SuSFSManager.configureAutoStart(context, true)
-                                    }
-                                }
+                                viewModel.setEnableHideBl(context, enabled)
                             },
-                            enableCleanupResidue = enableCleanupResidue,
+                            enableCleanupResidue = uiState.enableCleanupResidue,
                             onEnableCleanupResidueChange = { enabled: Boolean ->
-                                enableCleanupResidue = enabled
-                                SuSFSManager.saveEnableCleanupResidue(context, enabled)
-                                if (SuSFSManager.isAutoStartEnabled(context)) {
-                                    coroutineScope.launch {
-                                        SuSFSManager.configureAutoStart(context, true)
-                                    }
-                                }
+                                viewModel.setEnableCleanupResidue(context, enabled)
                             },
-                            enableAvcLogSpoofing = enableAvcLogSpoofing,
+                            enableAvcLogSpoofing = uiState.enableAvcLogSpoofing,
                             onEnableAvcLogSpoofingChange = { enabled: Boolean ->
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    val success =
-                                        SuSFSManager.setEnableAvcLogSpoofing(context, enabled)
-                                    if (success) {
-                                        enableAvcLogSpoofing = enabled
-                                    }
-                                    isLoading = false
-                                }
+                                viewModel.setEnableAvcLogSpoofing(context, enabled)
                             },
-                            hideSusMountsForAllProcs = hideSusMountsForAllProcs,
+                            hideSusMountsForAllProcs = uiState.hideSusMountsForAllProcs,
                             onHideSusMountsForAllProcsChange = { hideForAll: Boolean ->
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    if (SuSFSManager.setHideSusMountsForAllProcs(
-                                            context,
-                                            hideForAll
-                                        )
-                                    ) {
-                                        hideSusMountsForAllProcs = hideForAll
-                                    }
-                                    isLoading = false
-                                }
+                                viewModel.setHideSusMountsForAllProcs(context, hideForAll)
                             },
-                            onReset = { showConfirmReset = true },
-                            onApply = {
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    val success = SuSFSManager.setUname(
-                                        context,
-                                        unameValue.trim(),
-                                        buildTimeValue.trim()
-                                    )
-                                    if (success) {
-                                        SuSFSManager.saveExecuteInPostFsData(
-                                            context,
-                                            executeInPostFsData
-                                        )
-                                        if (SuSFSManager.isAutoStartEnabled(context)) {
-                                            SuSFSManager.configureAutoStart(context, true)
-                                        }
-                                    }
-                                    isLoading = false
-                                }
-                            },
+                            onReset = { viewModel.toggleConfirmReset(true) },
+                            onApply = { viewModel.applyBasicSettings(context) },
                             onConfigReload = {
-                                coroutineScope.launch {
-                                    unameValue = SuSFSManager.getUnameValue(context)
-                                    buildTimeValue = SuSFSManager.getBuildTimeValue(context)
-                                    autoStartEnabled = SuSFSManager.isAutoStartEnabled(context)
-                                    executeInPostFsData =
-                                        SuSFSManager.getExecuteInPostFsData(context)
-                                    susPaths = SuSFSManager.getSusPaths(context)
-                                    susLoopPaths = SuSFSManager.getSusLoopPaths(context)
-                                    susMaps = SuSFSManager.getSusMaps(context)
-                                    androidDataPath = SuSFSManager.getAndroidDataPath(context)
-                                    sdcardPath = SuSFSManager.getSdcardPath(context)
-                                    kstatConfigs = SuSFSManager.getKstatConfigs(context)
-                                    addKstatPaths = SuSFSManager.getAddKstatPaths(context)
-                                    hideSusMountsForAllProcs =
-                                        SuSFSManager.getHideSusMountsForAllProcs(context)
-                                    enableHideBl = SuSFSManager.getEnableHideBl(context)
-                                    enableCleanupResidue =
-                                        SuSFSManager.getEnableCleanupResidue(context)
-                                    enableAvcLogSpoofing =
-                                        SuSFSManager.getEnableAvcLogSpoofing(context)
-                                }
+                                viewModel.reloadConfig(context)
                             }
                         )
                     }
                     SuSFSTab.SUS_PATHS -> {
                         SusPathsContent(
-                            susPaths = susPaths,
-                            isLoading = isLoading,
-                            onAddPath = { showAddPathDialog = true },
-                            onAddAppPath = { showAddAppPathDialog = true },
+                            susPaths = uiState.susPaths,
+                            isLoading = uiState.isLoading,
+                            onAddPath = { viewModel.openAddPathDialog() },
+                            onAddAppPath = {
+                                viewModel.openAddAppPathDialog()
+                                viewModel.loadInstalledApps()
+                            },
                             onRemovePath = { path ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     if (SuSFSManager.removeSusPath(context, path)) {
-                                        susPaths = SuSFSManager.getSusPaths(context)
+                                        viewModel.reloadConfig(context)
                                     }
-                                    isLoading = false
                                 }
                             },
                             onEditPath = { path ->
-                                editingPath = path
-                                showAddPathDialog = true
+                                viewModel.openAddPathDialog(path)
                             },
-                            forceRefreshApps = selectedTab == SuSFSTab.SUS_PATHS,
-                            onReset = { showResetPathsDialog = true }
+                            forceRefreshApps = uiState.selectedTab == SuSFSTab.SUS_PATHS,
+                            onReset = { viewModel.toggleResetPathsDialog(true) }
                         )
                     }
                     SuSFSTab.SUS_LOOP_PATHS -> {
                         SusLoopPathsContent(
-                            susLoopPaths = susLoopPaths,
-                            isLoading = isLoading,
-                            onAddLoopPath = { showAddLoopPathDialog = true },
+                            susLoopPaths = uiState.susLoopPaths,
+                            isLoading = uiState.isLoading,
+                            onAddLoopPath = { viewModel.openAddLoopPathDialog() },
                             onRemoveLoopPath = { path ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     if (SuSFSManager.removeSusLoopPath(context, path)) {
-                                        susLoopPaths = SuSFSManager.getSusLoopPaths(context)
+                                        viewModel.reloadConfig(context)
                                     }
-                                    isLoading = false
                                 }
                             },
                             onEditLoopPath = { path ->
-                                editingLoopPath = path
-                                showAddLoopPathDialog = true
+                                viewModel.openAddLoopPathDialog(path)
                             },
-                            onReset = { showResetLoopPathsDialog = true }
+                            onReset = { viewModel.toggleResetLoopPathsDialog(true) }
                         )
                     }
                     SuSFSTab.SUS_MAPS -> {
                         SusMapsContent(
-                            susMaps = susMaps,
-                            isLoading = isLoading,
-                            onAddSusMap = { showAddSusMapDialog = true },
+                            susMaps = uiState.susMaps,
+                            isLoading = uiState.isLoading,
+                            onAddSusMap = { viewModel.openAddSusMapDialog() },
                             onRemoveSusMap = { map ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     if (SuSFSManager.removeSusMap(context, map)) {
-                                        susMaps = SuSFSManager.getSusMaps(context)
+                                        viewModel.reloadConfig(context)
                                     }
-                                    isLoading = false
                                 }
                             },
                             onEditSusMap = { map ->
-                                editingSusMap = map
-                                showAddSusMapDialog = true
+                                viewModel.openAddSusMapDialog(map)
                             },
-                            onReset = { showResetSusMapsDialog = true }
+                            onReset = { viewModel.toggleResetSusMapsDialog(true) }
                         )
                     }
                     SuSFSTab.KSTAT_CONFIG -> {
                         KstatConfigContent(
-                            kstatConfigs = kstatConfigs,
-                            addKstatPaths = addKstatPaths,
-                            isLoading = isLoading,
-                            onAddKstatStatically = { showAddKstatStaticallyDialog = true },
-                            onAddKstat = { showAddKstatDialog = true },
+                            kstatConfigs = uiState.kstatConfigs,
+                            addKstatPaths = uiState.addKstatPaths,
+                            isLoading = uiState.isLoading,
+                            onAddKstatStatically = { viewModel.openAddKstatStaticallyDialog() },
+                            onAddKstat = { viewModel.openAddKstatDialog() },
                             onRemoveKstatConfig = { config ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     if (SuSFSManager.removeKstatConfig(context, config)) {
-                                        kstatConfigs = SuSFSManager.getKstatConfigs(context)
+                                        viewModel.reloadConfig(context)
                                     }
-                                    isLoading = false
                                 }
                             },
                             onEditKstatConfig = { config ->
-                                editingKstatConfig = config
-                                showAddKstatStaticallyDialog = true
+                                viewModel.openAddKstatStaticallyDialog(config)
                             },
                             onRemoveAddKstat = { path ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     if (SuSFSManager.removeAddKstat(context, path)) {
-                                        addKstatPaths = SuSFSManager.getAddKstatPaths(context)
+                                        viewModel.reloadConfig(context)
                                     }
-                                    isLoading = false
                                 }
                             },
                             onEditAddKstat = { path ->
-                                editingKstatPath = path
-                                showAddKstatDialog = true
+                                viewModel.openAddKstatDialog(path)
                             },
                             onUpdateKstat = { path ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     SuSFSManager.updateKstat(context, path)
-                                    isLoading = false
                                 }
                             },
                             onUpdateKstatFullClone = { path ->
                                 coroutineScope.launch {
-                                    isLoading = true
                                     SuSFSManager.updateKstatFullClone(context, path)
-                                    isLoading = false
                                 }
                             }
                         )
                     }
                     SuSFSTab.PATH_SETTINGS -> {
                         PathSettingsContent(
-                            androidDataPath = androidDataPath,
-                            onAndroidDataPathChange = { androidDataPath = it },
-                            sdcardPath = sdcardPath,
-                            onSdcardPathChange = { sdcardPath = it },
-                            isLoading = isLoading,
+                            androidDataPath = uiState.androidDataPath,
+                            onAndroidDataPathChange = { viewModel.updateAndroidDataPath(it) },
+                            sdcardPath = uiState.sdcardPath,
+                            onSdcardPathChange = { viewModel.updateSdcardPath(it) },
+                            isLoading = uiState.isLoading,
                             onSetAndroidDataPath = {
                                 coroutineScope.launch {
-                                    isLoading = true
-                                    SuSFSManager.setAndroidDataPath(context, androidDataPath.trim())
-                                    isLoading = false
+                                    SuSFSManager.setAndroidDataPath(context, uiState.androidDataPath.trim())
+                                    viewModel.reloadConfig(context)
                                 }
                             },
                             onSetSdcardPath = {
                                 coroutineScope.launch {
-                                    isLoading = true
-                                    SuSFSManager.setSdcardPath(context, sdcardPath.trim())
-                                    isLoading = false
+                                    SuSFSManager.setSdcardPath(context, uiState.sdcardPath.trim())
+                                    viewModel.reloadConfig(context)
                                 }
                             },
                             onReset = {
-                                androidDataPath = "/sdcard/Android/data"
-                                sdcardPath = "/sdcard"
+                                viewModel.updateAndroidDataPath("/sdcard/Android/data")
+                                viewModel.updateSdcardPath("/sdcard")
                                 coroutineScope.launch {
-                                    isLoading = true
-                                    SuSFSManager.setAndroidDataPath(context, androidDataPath)
-                                    SuSFSManager.setSdcardPath(context, sdcardPath)
-                                    isLoading = false
+                                    SuSFSManager.setAndroidDataPath(context, "/sdcard/Android/data")
+                                    SuSFSManager.setSdcardPath(context, "/sdcard")
+                                    viewModel.reloadConfig(context)
                                 }
                             }
                         )
                     }
                     SuSFSTab.ENABLED_FEATURES -> {
                         EnabledFeaturesContent(
-                            enabledFeatures = enabledFeatures,
-                            onRefresh = { loadEnabledFeatures() }
+                            enabledFeatures = uiState.enabledFeatures,
+                            onRefresh = { viewModel.loadEnabledFeatures(context) }
                         )
                     }
                 }
