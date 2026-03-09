@@ -129,7 +129,7 @@ fun ToolsMiuix() {
                             startAction = {
                                 Icon(
                                     Icons.Rounded.FolderDelete,
-                                    modifier = Modifier.padding(end = 16.dp),
+                                    modifier = Modifier.padding(end = 6.dp),
                                     contentDescription = umontManager,
                                     tint = colorScheme.onBackground
                                 )
@@ -176,7 +176,7 @@ fun SelinuxToggleSection(
             startAction = {
                 Icon(
                     imageVector = Icons.Rounded.Security,
-                    modifier = Modifier.padding(end = 16.dp),
+                    modifier = Modifier.padding(end = 6.dp),
                     contentDescription = stringResource(id = R.string.tools_selinux_toggle),
                     tint = colorScheme.onBackground
                 )
@@ -282,7 +282,7 @@ private fun AllowlistBackupSection(
             startAction = {
                 Icon(
                     imageVector = Icons.Rounded.Backup,
-                    modifier = Modifier.padding(end = 16.dp),
+                    modifier = Modifier.padding(end = 6.dp),
                     contentDescription = stringResource(R.string.allowlist_backup_title),
                     tint = colorScheme.onBackground
                 )
@@ -298,7 +298,7 @@ private fun AllowlistBackupSection(
             startAction = {
                 Icon(
                     imageVector = Icons.Rounded.Restore,
-                    modifier = Modifier.padding(end = 16.dp),
+                    modifier = Modifier.padding(end = 6.dp),
                     contentDescription = stringResource(R.string.allowlist_restore_title),
                     tint = colorScheme.onBackground
                 )

@@ -117,6 +117,7 @@ fun SuSFSConfigScreen() {
 
     // 启用功能状态相关
     var enabledFeatures by remember { mutableStateOf(emptyList<SuSFSManager.EnabledFeature>()) }
+    var isLoadingFeatures by remember { mutableStateOf(false) }
 
     // 应用列表相关状态
     var installedApps by remember { mutableStateOf(emptyList<SuSFSManager.AppInfo>()) }
@@ -157,7 +158,9 @@ fun SuSFSConfigScreen() {
     // 加载启用功能状态
     fun loadEnabledFeatures() {
         coroutineScope.launch {
+            isLoadingFeatures = true
             enabledFeatures = SuSFSManager.getEnabledFeatures(context)
+            isLoadingFeatures = false
         }
     }
 
@@ -221,23 +224,28 @@ fun SuSFSConfigScreen() {
     // 槽位信息对话框
     SlotInfoDialog(
         showDialog = showSlotInfoDialog,
-        onDismiss = { },
+        onDismiss = { showSlotInfoDialog = false },
         slotInfoList = slotInfoList,
         currentActiveSlot = currentActiveSlot,
         isLoadingSlotInfo = isLoadingSlotInfo,
         onRefresh = { loadSlotInfo() },
         onUseUname = { uname: String ->
             unameValue = uname
+            showSlotInfoDialog = false
         },
         onUseBuildTime = { buildTime: String ->
             buildTimeValue = buildTime
+            showSlotInfoDialog = false
         }
     )
 
     // 各种对话框
     AddPathDialog(
         showDialog = showAddPathDialog,
-        onDismiss = { },
+        onDismiss = {
+            showAddPathDialog = false
+            editingPath = null
+        },
         onConfirm = { path ->
             val oldPath = editingPath
             coroutineScope.launch {
@@ -251,6 +259,7 @@ fun SuSFSConfigScreen() {
                     susPaths = SuSFSManager.getSusPaths(context)
                 }
                 isLoading = false
+                showAddPathDialog = false
                 editingPath = null
             }
         },
@@ -262,7 +271,10 @@ fun SuSFSConfigScreen() {
 
     AddPathDialog(
         showDialog = showAddLoopPathDialog,
-        onDismiss = { },
+        onDismiss = {
+            showAddLoopPathDialog = false
+            editingLoopPath = null
+        },
         onConfirm = { path ->
             val oldPath = editingLoopPath
             coroutineScope.launch {
@@ -276,6 +288,7 @@ fun SuSFSConfigScreen() {
                     susLoopPaths = SuSFSManager.getSusLoopPaths(context)
                 }
                 isLoading = false
+                showAddLoopPathDialog = false
                 editingLoopPath = null
             }
         },
@@ -287,7 +300,10 @@ fun SuSFSConfigScreen() {
 
     AddPathDialog(
         showDialog = showAddSusMapDialog,
-        onDismiss = { },
+        onDismiss = {
+            showAddSusMapDialog = false
+            editingSusMap = null
+        },
         onConfirm = { path ->
             val oldPath = editingSusMap
             coroutineScope.launch {
@@ -301,6 +317,7 @@ fun SuSFSConfigScreen() {
                     susMaps = SuSFSManager.getSusMaps(context)
                 }
                 isLoading = false
+                showAddSusMapDialog = false
                 editingSusMap = null
             }
         },
@@ -312,7 +329,7 @@ fun SuSFSConfigScreen() {
 
     AddAppPathDialog(
         showDialog = showAddAppPathDialog,
-        onDismiss = { },
+        onDismiss = { showAddAppPathDialog = false },
         onConfirm = { packageNames ->
             coroutineScope.launch {
                 isLoading = true
@@ -326,6 +343,7 @@ fun SuSFSConfigScreen() {
                     susPaths = SuSFSManager.getSusPaths(context)
                 }
                 isLoading = false
+                showAddAppPathDialog = false
             }
         },
         isLoading = isLoading,
@@ -337,7 +355,10 @@ fun SuSFSConfigScreen() {
 
     AddKstatStaticallyDialog(
         showDialog = showAddKstatStaticallyDialog,
-        onDismiss = { },
+        onDismiss = {
+            showAddKstatStaticallyDialog = false
+            editingKstatConfig = null
+        },
         onConfirm = { path, ino, dev, nlink, size, atime, atimeNsec, mtime, mtimeNsec, ctime, ctimeNsec, blocks, blksize ->
             val oldConfig = editingKstatConfig
             coroutineScope.launch {
@@ -370,6 +391,7 @@ fun SuSFSConfigScreen() {
                     kstatConfigs = SuSFSManager.getKstatConfigs(context)
                 }
                 isLoading = false
+                showAddKstatStaticallyDialog = false
                 editingKstatConfig = null
             }
         },
@@ -379,7 +401,10 @@ fun SuSFSConfigScreen() {
 
     AddPathDialog(
         showDialog = showAddKstatDialog,
-        onDismiss = { },
+        onDismiss = {
+            showAddKstatDialog = false
+            editingKstatPath = null
+        },
         onConfirm = { path ->
             val oldPath = editingKstatPath
             coroutineScope.launch {
@@ -393,6 +418,7 @@ fun SuSFSConfigScreen() {
                     addKstatPaths = SuSFSManager.getAddKstatPaths(context)
                 }
                 isLoading = false
+                showAddKstatDialog = false
                 editingKstatPath = null
             }
         },
@@ -405,8 +431,9 @@ fun SuSFSConfigScreen() {
     // 确认对话框
     ConfirmDialog(
         showDialog = showConfirmReset,
-        onDismiss = { },
+        onDismiss = { showConfirmReset = false },
         onConfirm = {
+            showConfirmReset = false
             coroutineScope.launch {
                 isLoading = true
                 if (SuSFSManager.resetToDefault(context)) {
@@ -425,7 +452,7 @@ fun SuSFSConfigScreen() {
     // 重置对话框
     ConfirmDialog(
         showDialog = showResetPathsDialog,
-        onDismiss = { },
+        onDismiss = { showResetPathsDialog = false },
         onConfirm = {
             coroutineScope.launch {
                 isLoading = true
@@ -435,6 +462,7 @@ fun SuSFSConfigScreen() {
                     SuSFSManager.configureAutoStart(context, true)
                 }
                 isLoading = false
+                showResetPathsDialog = false
             }
         },
         titleRes = R.string.susfs_reset_paths_title,
@@ -444,7 +472,7 @@ fun SuSFSConfigScreen() {
 
     ConfirmDialog(
         showDialog = showResetLoopPathsDialog,
-        onDismiss = { },
+        onDismiss = { showResetLoopPathsDialog = false },
         onConfirm = {
             coroutineScope.launch {
                 isLoading = true
@@ -454,6 +482,7 @@ fun SuSFSConfigScreen() {
                     SuSFSManager.configureAutoStart(context, true)
                 }
                 isLoading = false
+                showResetLoopPathsDialog = false
             }
         },
         titleRes = R.string.susfs_reset_loop_paths_title,
@@ -463,7 +492,7 @@ fun SuSFSConfigScreen() {
 
     ConfirmDialog(
         showDialog = showResetSusMapsDialog,
-        onDismiss = { },
+        onDismiss = { showResetSusMapsDialog = false },
         onConfirm = {
             coroutineScope.launch {
                 isLoading = true
@@ -473,6 +502,7 @@ fun SuSFSConfigScreen() {
                     SuSFSManager.configureAutoStart(context, true)
                 }
                 isLoading = false
+                showResetSusMapsDialog = false
             }
         },
         titleRes = R.string.susfs_reset_sus_maps_title,
@@ -483,7 +513,7 @@ fun SuSFSConfigScreen() {
 
     ConfirmDialog(
         showDialog = showResetKstatDialog,
-        onDismiss = { },
+        onDismiss = { showResetKstatDialog = false },
         onConfirm = {
             coroutineScope.launch {
                 isLoading = true
@@ -495,6 +525,7 @@ fun SuSFSConfigScreen() {
                     SuSFSManager.configureAutoStart(context, true)
                 }
                 isLoading = false
+                showResetKstatDialog = false
             }
         },
         titleRes = R.string.reset_kstat_config_title,
@@ -614,7 +645,7 @@ fun SuSFSConfigScreen() {
                                     }
                                 }
                             },
-                            onShowSlotInfo = { },
+                            onShowSlotInfo = { showSlotInfoDialog = true },
                             context = context,
                             enableHideBl = enableHideBl,
                             onEnableHideBlChange = { enabled: Boolean ->
@@ -662,7 +693,7 @@ fun SuSFSConfigScreen() {
                                     isLoading = false
                                 }
                             },
-                            onReset = { },
+                            onReset = { showConfirmReset = true },
                             onApply = {
                                 coroutineScope.launch {
                                     isLoading = true
@@ -712,8 +743,8 @@ fun SuSFSConfigScreen() {
                         SusPathsContent(
                             susPaths = susPaths,
                             isLoading = isLoading,
-                            onAddPath = { },
-                            onAddAppPath = { },
+                            onAddPath = { showAddPathDialog = true },
+                            onAddAppPath = { showAddAppPathDialog = true },
                             onRemovePath = { path ->
                                 coroutineScope.launch {
                                     isLoading = true
@@ -725,16 +756,17 @@ fun SuSFSConfigScreen() {
                             },
                             onEditPath = { path ->
                                 editingPath = path
+                                showAddPathDialog = true
                             },
                             forceRefreshApps = selectedTab == SuSFSTab.SUS_PATHS,
-                            onReset = { }
+                            onReset = { showResetPathsDialog = true }
                         )
                     }
                     SuSFSTab.SUS_LOOP_PATHS -> {
                         SusLoopPathsContent(
                             susLoopPaths = susLoopPaths,
                             isLoading = isLoading,
-                            onAddLoopPath = { },
+                            onAddLoopPath = { showAddLoopPathDialog = true },
                             onRemoveLoopPath = { path ->
                                 coroutineScope.launch {
                                     isLoading = true
@@ -746,15 +778,16 @@ fun SuSFSConfigScreen() {
                             },
                             onEditLoopPath = { path ->
                                 editingLoopPath = path
+                                showAddLoopPathDialog = true
                             },
-                            onReset = { }
+                            onReset = { showResetLoopPathsDialog = true }
                         )
                     }
                     SuSFSTab.SUS_MAPS -> {
                         SusMapsContent(
                             susMaps = susMaps,
                             isLoading = isLoading,
-                            onAddSusMap = { },
+                            onAddSusMap = { showAddSusMapDialog = true },
                             onRemoveSusMap = { map ->
                                 coroutineScope.launch {
                                     isLoading = true
@@ -766,8 +799,9 @@ fun SuSFSConfigScreen() {
                             },
                             onEditSusMap = { map ->
                                 editingSusMap = map
+                                showAddSusMapDialog = true
                             },
-                            onReset = { }
+                            onReset = { showResetSusMapsDialog = true }
                         )
                     }
                     SuSFSTab.KSTAT_CONFIG -> {
@@ -775,8 +809,8 @@ fun SuSFSConfigScreen() {
                             kstatConfigs = kstatConfigs,
                             addKstatPaths = addKstatPaths,
                             isLoading = isLoading,
-                            onAddKstatStatically = { },
-                            onAddKstat = { },
+                            onAddKstatStatically = { showAddKstatStaticallyDialog = true },
+                            onAddKstat = { showAddKstatDialog = true },
                             onRemoveKstatConfig = { config ->
                                 coroutineScope.launch {
                                     isLoading = true
@@ -788,6 +822,7 @@ fun SuSFSConfigScreen() {
                             },
                             onEditKstatConfig = { config ->
                                 editingKstatConfig = config
+                                showAddKstatStaticallyDialog = true
                             },
                             onRemoveAddKstat = { path ->
                                 coroutineScope.launch {
@@ -800,6 +835,7 @@ fun SuSFSConfigScreen() {
                             },
                             onEditAddKstat = { path ->
                                 editingKstatPath = path
+                                showAddKstatDialog = true
                             },
                             onUpdateKstat = { path ->
                                 coroutineScope.launch {

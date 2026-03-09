@@ -440,8 +440,11 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                         ExpressiveListItem(
                             onClick = { navigator.push(Route.Sulog) },
                             headlineContent = { Text(sulogtext) },
-                            supportingContent = { Text(stringResource(id = R.string.settings_view_sulog)) },
-                            leadingContent = { Icon(Icons.Filled.Fence, sulogtext) },
+                            leadingContent = {
+                                Icon(Icons.Filled.Fence,
+                                    sulogtext
+                                )
+                            },
                         )
                     }
                 )

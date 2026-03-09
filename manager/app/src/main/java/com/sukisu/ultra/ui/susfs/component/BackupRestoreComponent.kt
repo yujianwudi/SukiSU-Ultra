@@ -43,6 +43,7 @@ fun BackupRestoreComponent(
         uri?.let { fileUri ->
             coroutineScope.launch {
                 try {
+                    internalLoading = true
                     onLoadingChange(true)
                     val fileName = SuSFSManager.getDefaultBackupFileName()
                     val tempFile = File(context.cacheDir, fileName)
@@ -64,6 +65,7 @@ fun BackupRestoreComponent(
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {
+                    internalLoading = false
                     onLoadingChange(false)
                     showBackupDialog = false
                 }
@@ -106,7 +108,7 @@ fun BackupRestoreComponent(
     // 备份对话框
     BackupDialog(
         showDialog = showBackupDialog,
-        onDismiss = { },
+        onDismiss = { showBackupDialog = false },
         isLoading = actualLoading,
         onBackup = {
             val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
@@ -118,7 +120,7 @@ fun BackupRestoreComponent(
     // 还原对话框
     RestoreDialog(
         showDialog = showRestoreDialog,
-        onDismiss = { },
+        onDismiss = { showRestoreDialog = false },
         isLoading = actualLoading,
         onSelectFile = {
             restoreFileLauncher.launch(arrayOf("application/json", "*/*"))
@@ -128,13 +130,18 @@ fun BackupRestoreComponent(
     // 还原确认对话框
     RestoreConfirmDialog(
         showDialog = showRestoreConfirmDialog,
-        onDismiss = { },
+        onDismiss = {
+            showRestoreConfirmDialog = false
+            selectedBackupFile = null
+            backupInfo = null
+        },
         backupInfo = backupInfo,
         isLoading = actualLoading,
         onConfirm = {
             selectedBackupFile?.let { filePath ->
                 coroutineScope.launch {
                     try {
+                        internalLoading = true
                         onLoadingChange(true)
                         val success = SuSFSManager.restoreFromBackup(context, filePath)
                         if (success) {
@@ -143,9 +150,12 @@ fun BackupRestoreComponent(
                     } catch (e: Exception) {
                         e.printStackTrace()
                     } finally {
+                        internalLoading = false
                         onLoadingChange(false)
+                        showRestoreConfirmDialog = false
                         kotlinx.coroutines.delay(100)
                         selectedBackupFile = null
+                        backupInfo = null
                     }
                 }
             }
@@ -165,7 +175,7 @@ fun BackupRestoreComponent(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { },
+                onClick = { showBackupDialog = true },
                 enabled = !actualLoading,
                 modifier = Modifier
                     .weight(1f)
@@ -177,7 +187,7 @@ fun BackupRestoreComponent(
                 )
             }
             Button(
-                onClick = { },
+                onClick = { showRestoreDialog = true },
                 enabled = !actualLoading,
                 modifier = Modifier
                     .weight(1f)

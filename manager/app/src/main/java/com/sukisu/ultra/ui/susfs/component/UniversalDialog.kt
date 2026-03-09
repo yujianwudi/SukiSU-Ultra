@@ -80,7 +80,7 @@ fun UniversalDialog(
     onReset: (() -> Unit)? = null
 ) {
     val showDialogState = remember { mutableStateOf(showDialog) }
-    
+
     LaunchedEffect(showDialog) {
         showDialogState.value = showDialog
     }
@@ -109,15 +109,15 @@ fun UniversalDialog(
                     fields.forEach { field ->
                         when (field) {
                             is DialogField.TextField -> {
-                                TextField(
-                                    value = field.value,
-                                    onValueChange = field.onValueChange,
-                                    label = stringResource(field.labelRes),
-                                    useLabelAsPlaceholder = true,
-                                    modifier = field.modifier,
-                                    enabled = field.enabled && !isLoading
-                                )
-                            }
+                                    TextField(
+                                        value = field.value,
+                                        onValueChange = field.onValueChange,
+                                        label = stringResource(field.labelRes),
+                                        useLabelAsPlaceholder = true,
+                                        modifier = field.modifier,
+                                        enabled = field.enabled && !isLoading
+                                    )
+                                }
                             is DialogField.Dropdown -> {
                                 SuperDropdown(
                                     title = stringResource(field.titleRes),

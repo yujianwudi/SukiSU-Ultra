@@ -479,7 +479,7 @@ fun SettingPagerMiuix(
                             startAction = {
                                 Icon(
                                     Icons.Rounded.Code,
-                                    modifier = Modifier.padding(end = 16.dp),
+                                    modifier = Modifier.padding(end = 6.dp),
                                     contentDescription = kpmTitle,
                                     tint = colorScheme.onBackground
                                 )
@@ -506,7 +506,7 @@ fun SettingPagerMiuix(
                                 startAction = {
                                     Icon(
                                         Icons.Rounded.Settings,
-                                        modifier = Modifier.padding(end = 16.dp),
+                                        modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = susfsTitle,
                                         tint = colorScheme.onBackground
                                     )
@@ -653,7 +653,7 @@ fun SettingPagerMiuix(
                         startAction = {
                             Icon(
                                 Icons.AutoMirrored.Rounded.Article,
-                                modifier = Modifier.padding(end = 16.dp),
+                                modifier = Modifier.padding(end = 6.dp),
                                 contentDescription = stringResource(id = R.string.settings_view_sulog),
                                 tint = colorScheme.onBackground
                             )

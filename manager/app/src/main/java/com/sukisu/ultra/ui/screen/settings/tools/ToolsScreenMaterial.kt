@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -20,11 +19,8 @@ import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.FolderDelete
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -46,6 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.KsuIsValid
+import com.sukisu.ultra.ui.component.material.ExpressiveColumn
+import com.sukisu.ultra.ui.component.material.ExpressiveListItem
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.util.getSELinuxStatus
@@ -85,26 +83,25 @@ fun ToolsMaterial() {
                 KsuIsValid {
                     SelinuxToggleSectionMaterial(scope = scope, context = context)
 
-                    Card(
-                        modifier = Modifier
-                            .padding(top = 12.dp)
-                            .fillMaxWidth(),
-                    ) {
-                        val umontManager = stringResource(id = R.string.umount_path_manager)
-                        ListItem(
-                            headlineContent = { Text(umontManager) },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Rounded.FolderDelete,
-                                    contentDescription = umontManager,
-                                    tint = MaterialTheme.colorScheme.onSurface
+                    ExpressiveColumn(
+                        modifier = Modifier.padding(top = 12.dp),
+                        content = listOf(
+                            {
+                                val umontManager = stringResource(id = R.string.umount_path_manager)
+                                ExpressiveListItem(
+                                    onClick = { navigator.push(Route.UmountManager) },
+                                    headlineContent = { Text(umontManager) },
+                                    leadingContent = {
+                                        Icon(
+                                            Icons.Rounded.FolderDelete,
+                                            umontManager,
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 )
-                            },
-                            modifier = Modifier.clickable {
-                                navigator.push(Route.UmountManager)
                             }
                         )
-                    }
+                    )
 
                     AllowlistBackupSectionMaterial(scope = scope, context = context)
                 }
@@ -127,63 +124,64 @@ fun SelinuxToggleSectionMaterial(
         selinuxLoading = false
     }
 
-    Card(
-        modifier = Modifier
-            .padding(top = 12.dp)
-            .fillMaxWidth(),
-    ) {
-        val statusLabel = getSELinuxStatus()
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.tools_selinux_toggle)) },
-            supportingContent = { Text(stringResource(R.string.tools_selinux_summary, statusLabel)) },
-            leadingContent = {
-                Icon(
-                    imageVector = Icons.Rounded.Security,
-                    contentDescription = stringResource(id = R.string.tools_selinux_toggle),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            trailingContent = {
-                Switch(
-                    checked = selinuxEnforcing,
-                    enabled = !selinuxLoading,
-                    onCheckedChange = { target ->
-                        selinuxLoading = true
-                        scope.launch(Dispatchers.IO) {
-                            val success = if (target) {
-                                setSelinuxPermissive(false)
-                            } else {
-                                setSelinuxPermissive(true)
-                            }
-                            val actual = !isSelinuxPermissive()
-                            withContext(Dispatchers.Main) {
-                                selinuxEnforcing = actual
-                                selinuxLoading = false
-                                Toast.makeText(
-                                    context,
-                                    if (success && actual == target) {
-                                        context.getString(
-                                            R.string.tools_selinux_apply_success,
-                                            context.getString(
-                                                if (actual) {
-                                                    R.string.selinux_status_enforcing
-                                                } else {
-                                                    R.string.selinux_status_permissive
-                                                }
-                                            )
-                                        )
+    ExpressiveColumn(
+        modifier = Modifier.padding(top = 12.dp),
+        content = listOf(
+            {
+                val statusLabel = getSELinuxStatus()
+                ExpressiveListItem(
+                    headlineContent = { Text(stringResource(R.string.tools_selinux_toggle)) },
+                    supportingContent = { Text(stringResource(R.string.tools_selinux_summary, statusLabel)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Security,
+                            contentDescription = stringResource(id = R.string.tools_selinux_toggle),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = selinuxEnforcing,
+                            enabled = !selinuxLoading,
+                            onCheckedChange = { target ->
+                                selinuxLoading = true
+                                scope.launch(Dispatchers.IO) {
+                                    val success = if (target) {
+                                        setSelinuxPermissive(false)
                                     } else {
-                                        context.getString(R.string.tools_selinux_apply_failed)
-                                    },
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                        setSelinuxPermissive(true)
+                                    }
+                                    val actual = !isSelinuxPermissive()
+                                    withContext(Dispatchers.Main) {
+                                        selinuxEnforcing = actual
+                                        selinuxLoading = false
+                                        Toast.makeText(
+                                            context,
+                                            if (success && actual == target) {
+                                                context.getString(
+                                                    R.string.tools_selinux_apply_success,
+                                                    context.getString(
+                                                        if (actual) {
+                                                            R.string.selinux_status_enforcing
+                                                        } else {
+                                                            R.string.selinux_status_permissive
+                                                        }
+                                                    )
+                                                )
+                                            } else {
+                                                context.getString(R.string.tools_selinux_apply_failed)
+                                            },
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
                             }
-                        }
+                        )
                     }
                 )
             }
         )
-    }
+    )
 }
 
 @Composable
@@ -237,41 +235,41 @@ private fun AllowlistBackupSectionMaterial(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .padding(vertical = 12.dp)
-            .fillMaxWidth(),
-    ) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.allowlist_backup_title)) },
-            supportingContent = { Text(stringResource(R.string.allowlist_backup_summary_picker)) },
-            leadingContent = {
-                Icon(
-                    imageVector = Icons.Rounded.Backup,
-                    contentDescription = stringResource(R.string.allowlist_backup_title),
-                    tint = MaterialTheme.colorScheme.onSurface
+    ExpressiveColumn(
+        modifier = Modifier.padding(vertical = 12.dp),
+        content = listOf(
+            {
+                ExpressiveListItem(
+                    headlineContent = { Text(stringResource(R.string.allowlist_backup_title)) },
+                    supportingContent = { Text(stringResource(R.string.allowlist_backup_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Backup,
+                            contentDescription = stringResource(R.string.allowlist_backup_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        backupLauncher.launch("ksu_allowlist_backup.bin")
+                    }
                 )
             },
-            modifier = Modifier.clickable {
-                backupLauncher.launch("ksu_allowlist_backup.bin")
-            }
-        )
-
-        HorizontalDivider()
-
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.allowlist_restore_title)) },
-            supportingContent = { Text(stringResource(R.string.allowlist_restore_summary_picker)) },
-            leadingContent = {
-                Icon(
-                    imageVector = Icons.Rounded.Restore,
-                    contentDescription = stringResource(R.string.allowlist_restore_title),
-                    tint = MaterialTheme.colorScheme.onSurface
+            {
+                ExpressiveListItem(
+                    headlineContent = { Text(stringResource(R.string.allowlist_restore_title)) },
+                    supportingContent = { Text(stringResource(R.string.allowlist_restore_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Restore,
+                            contentDescription = stringResource(R.string.allowlist_restore_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        restoreLauncher.launch(arrayOf("*/*"))
+                    }
                 )
-            },
-            modifier = Modifier.clickable {
-                restoreLauncher.launch(arrayOf("*/*"))
             }
         )
-    }
+    )
 }

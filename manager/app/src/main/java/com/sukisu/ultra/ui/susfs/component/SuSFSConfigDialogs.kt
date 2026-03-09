@@ -365,40 +365,84 @@ fun AddPathDialog(
     labelRes: Int,
     initialValue: String = ""
 ) {
-    var newPath by remember { mutableStateOf("") }
+    var newPath by remember { mutableStateOf(initialValue) }
 
-    // 当对话框显示时，设置初始值
     LaunchedEffect(showDialog, initialValue) {
         if (showDialog) {
             newPath = initialValue
         }
     }
 
-    UniversalDialog(
-        showDialog = showDialog,
-        onDismiss = onDismiss,
-        onConfirm = {
-            if (newPath.isNotBlank()) {
-                onConfirm(newPath.trim())
-                true
-            } else {
-                false
+    val showDialogState = remember { mutableStateOf(showDialog) }
+    
+    LaunchedEffect(showDialog) {
+        showDialogState.value = showDialog
+    }
+
+    if (showDialogState.value) {
+        SuperDialog(
+            show = showDialogState,
+            title = stringResource(titleRes),
+            onDismissRequest = {
+                onDismiss()
+                newPath = ""
+            },
+            content = {
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextField(
+                        value = newPath,
+                        onValueChange = { newPath = it },
+                        label = stringResource(labelRes),
+                        useLabelAsPlaceholder = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                newPath = ""
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .padding(vertical = 8.dp),
+                            cornerRadius = 8.dp
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        Button(
+                            onClick = {
+                                if (newPath.isNotBlank()) {
+                                    onConfirm(newPath.trim())
+                                    newPath = ""
+                                }
+                            },
+                            enabled = newPath.isNotBlank() && !isLoading,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .padding(vertical = 8.dp),
+                            cornerRadius = 8.dp
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    if (initialValue.isNotEmpty()) R.string.susfs_save else R.string.add
+                                )
+                            )
+                        }
+                    }
+                }
             }
-        },
-        titleRes = titleRes,
-        isLoading = isLoading,
-        fields = listOf(
-            DialogField.TextField(
-                value = newPath,
-                onValueChange = { newPath = it },
-                labelRes = labelRes,
-                enabled = !isLoading
-            )
-        ),
-        confirmTextRes = if (initialValue.isNotEmpty()) R.string.susfs_save else R.string.add,
-        isConfirmEnabled = newPath.isNotBlank() && !isLoading,
-        onReset = { }
-    )
+        )
+    }
 }
 
 @Composable
@@ -462,6 +506,7 @@ fun AddAppPathDialog(
             title = stringResource(R.string.susfs_add_app_path),
             onDismissRequest = {
                 onDismiss()
+                selectedApps = setOf()
                 searchText = ""
             },
             content = {
@@ -1228,6 +1273,7 @@ fun FeatureStatusCard(
             title = stringResource(R.string.susfs_log_config_title),
             onDismissRequest = {
                 // 恢复原始状态
+                logEnabled = SuSFSManager.getEnableLogState(context)
                 showLogConfigDialog = false
             },
             content = {

@@ -115,7 +115,7 @@ fun UmountManagerMiuix() {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { }
+                onClick = { showAddDialog = true }
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
