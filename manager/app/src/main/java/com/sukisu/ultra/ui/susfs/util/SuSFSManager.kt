@@ -12,7 +12,6 @@ import com.sukisu.ultra.R
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.io.SuFile
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import androidx.core.content.edit
@@ -20,7 +19,6 @@ import com.sukisu.ultra.ui.util.getRootShell
 import com.sukisu.ultra.ui.util.getSuSFSVersion
 import com.sukisu.ultra.ui.util.getSuSFSFeatures
 import com.sukisu.ultra.ui.viewmodel.SuperUserViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import org.json.JSONArray
@@ -40,8 +38,6 @@ object SuSFSManager {
     private const val KEY_SUS_LOOP_PATHS = "sus_loop_paths"
 
     private const val KEY_SUS_MAPS = "sus_maps"
-    private const val KEY_ANDROID_DATA_PATH = "android_data_path"
-    private const val KEY_SDCARD_PATH = "sdcard_path"
     private const val KEY_ENABLE_LOG = "enable_log"
     private const val KEY_EXECUTE_IN_POST_FS_DATA = "execute_in_post_fs_data"
     private const val KEY_KSTAT_CONFIGS = "kstat_configs"
@@ -54,6 +50,8 @@ object SuSFSManager {
     // 常量
     private const val DEFAULT_UNAME = "default"
     private const val DEFAULT_BUILD_TIME = "default"
+    @SuppressLint("SdCardPath")
+    private const val DEFAULT_ANDROID_DATA_PATH = "/sdcard/Android/data"
     const val MAX_SUSFS_VERSION = "2.0.0"
     private const val BACKUP_FILE_EXTENSION = ".susfs_backup"
     private const val MEDIA_DATA_PATH = "/data/media/0/Android/data"
@@ -145,8 +143,6 @@ object SuSFSManager {
         val susPaths: Set<String>,
         val susLoopPaths: Set<String>,
         val susMaps: Set<String>,
-        val androidDataPath: String,
-        val sdcardPath: String,
         val enableLog: Boolean,
         val kstatConfigs: Set<String>,
         val addKstatPaths: Set<String>,
@@ -262,8 +258,6 @@ object SuSFSManager {
             susPaths = getSusPaths(context),
             susLoopPaths = getSusLoopPaths(context),
             susMaps = getSusMaps(context),
-            androidDataPath = getAndroidDataPath(context),
-            sdcardPath = getSdcardPath(context),
             enableLog = getEnableLogState(context),
             kstatConfigs = getKstatConfigs(context),
             addKstatPaths = getAddKstatPaths(context),
@@ -366,22 +360,6 @@ object SuSFSManager {
 
     fun getAddKstatPaths(context: Context): Set<String> =
         getPrefs(context).getStringSet(KEY_ADD_KSTAT_PATHS, emptySet()) ?: emptySet()
-
-    @SuppressLint("SdCardPath")
-    fun saveAndroidDataPath(context: Context, path: String) =
-        getPrefs(context).edit { putString(KEY_ANDROID_DATA_PATH, path) }
-
-    @SuppressLint("SdCardPath")
-    fun getAndroidDataPath(context: Context): String =
-        getPrefs(context).getString(KEY_ANDROID_DATA_PATH, "/sdcard/Android/data") ?: "/sdcard/Android/data"
-
-    @SuppressLint("SdCardPath")
-    fun saveSdcardPath(context: Context, path: String) =
-        getPrefs(context).edit { putString(KEY_SDCARD_PATH, path) }
-
-    @SuppressLint("SdCardPath")
-    fun getSdcardPath(context: Context): String =
-        getPrefs(context).getString(KEY_SDCARD_PATH, "/sdcard") ?: "/sdcard"
 
     // 获取已安装的应用列表
     @SuppressLint("QueryPermissionsNeeded")
@@ -493,10 +471,7 @@ object SuSFSManager {
     // 快捷添加应用路径
     @SuppressLint("StringFormatMatches")
     suspend fun addAppPaths(context: Context, packageName: String): Boolean {
-        val androidDataPath = getAndroidDataPath(context)
-        getSdcardPath(context)
-
-        val path1 = "$androidDataPath/$packageName"
+        val path1 = "$DEFAULT_ANDROID_DATA_PATH/$packageName"
         val path2 = "$MEDIA_DATA_PATH/$packageName"
 
         val uid = getAppUid(context, packageName) ?: return false
@@ -532,8 +507,6 @@ object SuSFSManager {
             KEY_SUS_PATHS to getSusPaths(context),
             KEY_SUS_LOOP_PATHS to getSusLoopPaths(context),
             KEY_SUS_MAPS to getSusMaps(context),
-            KEY_ANDROID_DATA_PATH to getAndroidDataPath(context),
-            KEY_SDCARD_PATH to getSdcardPath(context),
             KEY_ENABLE_LOG to getEnableLogState(context),
             KEY_EXECUTE_IN_POST_FS_DATA to getExecuteInPostFsData(context),
             KEY_KSTAT_CONFIGS to getKstatConfigs(context),
@@ -854,16 +827,6 @@ object SuSFSManager {
     // 添加SUS路径
     @SuppressLint("StringFormatInvalid")
     private suspend fun addSusPathInternal(context: Context, path: String, showToast: Boolean = true): Boolean {
-        // 先设置路径配置
-        val androidDataPath = getAndroidDataPath(context)
-        val sdcardPath = getSdcardPath(context)
-
-        // 先设置Android Data路径
-        executeSusfsCommand(context, "set_android_data_root_path '$androidDataPath'")
-
-        // 再设置SD卡路径
-        executeSusfsCommand(context, "set_sdcard_root_path '$sdcardPath'")
-
         // 执行添加SUS路径命令
         val result = executeSusfsCommandWithOutput(context, "add_sus_path '$path'")
         val isActuallySuccessful = result.isSuccess && !result.output.contains("not found, skip adding")
@@ -1153,34 +1116,6 @@ object SuSFSManager {
     // 更新kstat全克隆
     suspend fun updateKstatFullClone(context: Context, path: String): Boolean {
         return executeSusfsCommand(context, "update_sus_kstat_full_clone '$path'")
-    }
-
-    // 设置Android数据路径
-    suspend fun setAndroidDataPath(context: Context, path: String): Boolean {
-        val success = executeSusfsCommand(context, "set_android_data_root_path '$path'")
-        if (success) {
-            saveAndroidDataPath(context, path)
-            if (isAutoStartEnabled(context)) {
-                CoroutineScope(Dispatchers.Default).launch {
-                    updateMagiskModule(context)
-                }
-            }
-        }
-        return success
-    }
-
-    // 设置SD卡路径
-    suspend fun setSdcardPath(context: Context, path: String): Boolean {
-        val success = executeSusfsCommand(context, "set_sdcard_root_path '$path'")
-        if (success) {
-            saveSdcardPath(context, path)
-            if (isAutoStartEnabled(context)) {
-                CoroutineScope(Dispatchers.Default).launch {
-                    updateMagiskModule(context)
-                }
-            }
-        }
-        return success
     }
 
     fun hasConfigurationForAutoStart(context: Context): Boolean {

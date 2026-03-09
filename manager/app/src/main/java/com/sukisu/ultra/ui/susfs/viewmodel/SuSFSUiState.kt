@@ -32,8 +32,6 @@ data class SuSFSUiState(
     val susPaths: Set<String> = emptySet(),
     val susLoopPaths: Set<String> = emptySet(),
     val susMaps: Set<String> = emptySet(),
-    val androidDataPath: String = "",
-    val sdcardPath: String = "",
 
     // Kstat 配置
     val kstatConfigs: Set<String> = emptySet(),

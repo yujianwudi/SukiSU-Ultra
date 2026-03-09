@@ -39,7 +39,6 @@ import com.sukisu.ultra.ui.susfs.component.*
 import com.sukisu.ultra.ui.susfs.content.BasicSettingsContent
 import com.sukisu.ultra.ui.susfs.content.EnabledFeaturesContent
 import com.sukisu.ultra.ui.susfs.content.KstatConfigContent
-import com.sukisu.ultra.ui.susfs.content.PathSettingsContent
 import com.sukisu.ultra.ui.susfs.content.SusLoopPathsContent
 import com.sukisu.ultra.ui.susfs.content.SusMapsContent
 import com.sukisu.ultra.ui.susfs.content.SusPathsContent
@@ -64,7 +63,6 @@ enum class SuSFSTab(val displayNameRes: Int) {
     SUS_LOOP_PATHS(R.string.susfs_tab_sus_loop_paths),
     SUS_MAPS(R.string.susfs_tab_sus_maps),
     KSTAT_CONFIG(R.string.susfs_tab_kstat_config),
-    PATH_SETTINGS(R.string.susfs_tab_path_settings),
     ENABLED_FEATURES(R.string.susfs_tab_enabled_features);
 
     companion object {
@@ -602,36 +600,6 @@ fun SuSFSConfigScreen() {
                             onUpdateKstatFullClone = { path ->
                                 coroutineScope.launch {
                                     SuSFSManager.updateKstatFullClone(context, path)
-                                }
-                            }
-                        )
-                    }
-                    SuSFSTab.PATH_SETTINGS -> {
-                        PathSettingsContent(
-                            androidDataPath = uiState.androidDataPath,
-                            onAndroidDataPathChange = { viewModel.updateAndroidDataPath(it) },
-                            sdcardPath = uiState.sdcardPath,
-                            onSdcardPathChange = { viewModel.updateSdcardPath(it) },
-                            isLoading = uiState.isLoading,
-                            onSetAndroidDataPath = {
-                                coroutineScope.launch {
-                                    SuSFSManager.setAndroidDataPath(context, uiState.androidDataPath.trim())
-                                    viewModel.reloadConfig(context)
-                                }
-                            },
-                            onSetSdcardPath = {
-                                coroutineScope.launch {
-                                    SuSFSManager.setSdcardPath(context, uiState.sdcardPath.trim())
-                                    viewModel.reloadConfig(context)
-                                }
-                            },
-                            onReset = {
-                                viewModel.updateAndroidDataPath("/sdcard/Android/data")
-                                viewModel.updateSdcardPath("/sdcard")
-                                coroutineScope.launch {
-                                    SuSFSManager.setAndroidDataPath(context, "/sdcard/Android/data")
-                                    SuSFSManager.setSdcardPath(context, "/sdcard")
-                                    viewModel.reloadConfig(context)
                                 }
                             }
                         )

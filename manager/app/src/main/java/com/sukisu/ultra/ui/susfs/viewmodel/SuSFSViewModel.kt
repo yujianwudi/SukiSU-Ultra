@@ -49,8 +49,6 @@ class SuSFSViewModel(
                         susPaths = config.susPaths,
                         susLoopPaths = config.susLoopPaths,
                         susMaps = config.susMaps,
-                        androidDataPath = config.androidDataPath,
-                        sdcardPath = config.sdcardPath,
                         kstatConfigs = config.kstatConfigs,
                         addKstatPaths = config.addKstatPaths,
                         hideSusMountsForAllProcs = config.hideSusMountsForAllProcs,
@@ -111,14 +109,6 @@ class SuSFSViewModel(
 
     fun updateBuildTime(value: String) {
         _uiState.update { it.copy(buildTimeValue = value) }
-    }
-
-    fun updateAndroidDataPath(value: String) {
-        _uiState.update { it.copy(androidDataPath = value) }
-    }
-
-    fun updateSdcardPath(value: String) {
-        _uiState.update { it.copy(sdcardPath = value) }
     }
 
     fun setExecuteInPostFsData(value: Boolean) {
@@ -343,8 +333,6 @@ class SuSFSViewModel(
                     susPaths = config.susPaths,
                     susLoopPaths = config.susLoopPaths,
                     susMaps = config.susMaps,
-                    androidDataPath = config.androidDataPath,
-                    sdcardPath = config.sdcardPath,
                     kstatConfigs = config.kstatConfigs,
                     addKstatPaths = config.addKstatPaths,
                     hideSusMountsForAllProcs = config.hideSusMountsForAllProcs,

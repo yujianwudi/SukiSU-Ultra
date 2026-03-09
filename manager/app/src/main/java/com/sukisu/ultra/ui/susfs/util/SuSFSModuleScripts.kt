@@ -444,11 +444,8 @@ object ScriptGenerator {
             appendLine($$"echo \"$(get_current_time): SUS挂载隐藏控制设置为: $${if (config.hideSusMountsForAllProcs) "对所有进程隐藏" else "仅对非KSU进程隐藏"}\" >> \"$LOG_FILE\"")
             appendLine()
 
-            // 路径设置和SUS路径设置
+            // SUS路径设置
             if (config.susPaths.isNotEmpty() || config.susLoopPaths.isNotEmpty()) {
-                generatePathSettingSection(config.androidDataPath, config.sdcardPath)
-                appendLine()
-
                 // 添加普通SUS路径
                 if (config.susPaths.isNotEmpty()) {
                     generateSusPathsSection(config.susPaths)
@@ -477,22 +474,6 @@ object ScriptGenerator {
             }
             appendLine()
         }
-    }
-
-    @SuppressLint("SdCardPath")
-    private fun StringBuilder.generatePathSettingSection(androidDataPath: String, sdcardPath: String) {
-        appendLine("# 路径配置")
-        appendLine("# 设置Android Data路径")
-        appendLine("until [ -d \"/sdcard/Android\" ]; do sleep 1; done")
-        appendLine("sleep 60")
-        appendLine()
-        appendLine($$"\"$SUSFS_BIN\" set_android_data_root_path '$$androidDataPath'")
-        appendLine($$"echo \"$(get_current_time): Android Data路径设置为: $$androidDataPath\" >> \"$LOG_FILE\"")
-        appendLine()
-        appendLine("# 设置SD卡路径")
-        appendLine($$"\"$SUSFS_BIN\" set_sdcard_root_path '$$sdcardPath'")
-        appendLine($$"echo \"$(get_current_time): SD卡路径设置为: $$sdcardPath\" >> \"$LOG_FILE\"")
-        appendLine()
     }
 
     /**
