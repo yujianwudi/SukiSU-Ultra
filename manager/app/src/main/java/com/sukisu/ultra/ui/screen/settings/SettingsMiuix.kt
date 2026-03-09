@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContactPage
@@ -38,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.util.getSuSFSStatus
 import com.sukisu.ultra.ui.util.rememberKpmAvailable
+import com.sukisu.ultra.ui.util.toggleLauncherIcon
 import com.sukisu.ultra.ui.viewmodel.SettingsViewModel
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -188,6 +191,24 @@ fun SettingPagerMiuix(
                         selectedIndex = if (uiState.uiMode == UiMode.Material.value) 1 else 0,
                         onSelectedIndexChange = { index ->
                             viewModel.setUiMode(if (index == 0) UiMode.Miuix.value else UiMode.Material.value)
+                        }
+                    )
+                    val context = LocalContext.current
+                    SuperSwitch(
+                        title = stringResource(id = R.string.icon_switch_title),
+                        summary = stringResource(id = R.string.icon_switch_summary),
+                        startAction = {
+                            Icon(
+                                Icons.Rounded.Android,
+                                modifier = Modifier.padding(end = 6.dp),
+                                contentDescription = stringResource(id = R.string.icon_switch_title),
+                                tint = colorScheme.onBackground
+                            )
+                        },
+                        checked = uiState.alternativeIcon,
+                        onCheckedChange = {
+                            viewModel.setAlternativeIcon(it)
+                            toggleLauncherIcon(context, it)
                         }
                     )
                     

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.RemoveModerator
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,6 +85,7 @@ import com.sukisu.ultra.ui.util.LocalSnackbarHost
 import com.sukisu.ultra.ui.util.getBugreportFile
 import com.sukisu.ultra.ui.util.getSuSFSStatus
 import com.sukisu.ultra.ui.util.rememberKpmAvailable
+import com.sukisu.ultra.ui.util.toggleLauncherIcon
 import com.sukisu.ultra.ui.viewmodel.SettingsViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -199,6 +201,18 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                             selectedIndex = if (uiState.uiMode == UiMode.Material.value) 1 else 0,
                             onItemSelected = { index ->
                                 viewModel.setUiMode(if (index == 0) UiMode.Miuix.value else UiMode.Material.value)
+                            }
+                        )
+                    }
+                    add {
+                        SegmentedSwitchItem(
+                            icon = Icons.Rounded.Android,
+                            title = stringResource(id = R.string.icon_switch_title),
+                            summary = stringResource(id = R.string.icon_switch_summary),
+                            checked = uiState.alternativeIcon,
+                            onCheckedChange = {
+                                viewModel.setAlternativeIcon(it)
+                                toggleLauncherIcon(context, it)
                             }
                         )
                     }
