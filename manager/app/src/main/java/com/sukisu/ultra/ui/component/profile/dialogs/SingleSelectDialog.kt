@@ -13,8 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.sukisu.ultra.R
-import com.sukisu.ultra.ui.component.material.ExpressiveColumn
-import com.sukisu.ultra.ui.component.material.ExpressiveRadioItem
+import com.sukisu.ultra.ui.component.material.SegmentedColumn
+import com.sukisu.ultra.ui.component.material.SegmentedRadioItem
 
 @Composable
 fun <T> SingleSelectDialog(
@@ -31,12 +31,11 @@ fun <T> SingleSelectDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            ExpressiveColumn(
+            SegmentedColumn(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                selectedIndices = items.indexOf(selected).let { if (it >= 0) setOf(it) else emptySet() },
                 content = items.map { item ->
                     {
-                        ExpressiveRadioItem(
+                        SegmentedRadioItem(
                             title = itemTitle(item),
                             selected = selected == item,
                             onClick = { selected = item }

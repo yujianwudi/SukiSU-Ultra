@@ -2,11 +2,15 @@ package com.sukisu.ultra.ui.screen.install
 
 import android.content.Context
 import android.net.Uri
+import android.os.Parcelable
 import android.provider.OpenableColumns
 import androidx.annotation.StringRes
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import com.sukisu.ultra.R
 
-sealed class InstallMethod {
+@Parcelize
+sealed class InstallMethod : Parcelable {
     data class SelectFile(
         val uri: Uri? = null,
         @get:StringRes override val label: Int = R.string.select_file,
@@ -31,6 +35,8 @@ sealed class InstallMethod {
     ) : InstallMethod()
 
     abstract val label: Int
+
+    @IgnoredOnParcel
     open val summary: String? = null
 }
 

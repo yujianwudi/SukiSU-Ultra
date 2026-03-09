@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
@@ -11,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -51,9 +53,11 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.sukisu.ultra.Natives
+import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.bottombar.BottomBar
 import com.sukisu.ultra.ui.component.bottombar.MainPagerState
 import com.sukisu.ultra.ui.component.bottombar.rememberMainPagerState
+import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
 import com.sukisu.ultra.ui.kernelFlash.KernelFlashScreen
 import com.sukisu.ultra.ui.navigation3.HandleDeepLink
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
@@ -62,8 +66,9 @@ import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.navigation3.rememberNavigator
 import com.sukisu.ultra.ui.screen.about.AboutScreen
 import com.sukisu.ultra.ui.screen.appprofile.AppProfileScreen
-import com.sukisu.ultra.ui.screen.colorpalette.ColorPaletteScreenMaterial
+import com.sukisu.ultra.ui.screen.colorpalette.ColorPaletteScreen
 import com.sukisu.ultra.ui.screen.executemoduleaction.ExecuteModuleActionScreen
+import com.sukisu.ultra.ui.screen.flash.FlashIt
 import com.sukisu.ultra.ui.screen.flash.FlashScreen
 import com.sukisu.ultra.ui.screen.home.HomePager
 import com.sukisu.ultra.ui.screen.install.InstallScreen
@@ -86,6 +91,7 @@ import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBar
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBarBlur
 import com.sukisu.ultra.ui.theme.ThemeController
 import com.sukisu.ultra.ui.util.LocalSnackbarHost
+import com.sukisu.ultra.ui.util.getFileName
 import com.sukisu.ultra.ui.util.install
 import com.sukisu.ultra.ui.webui.WebUIActivity
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -95,6 +101,7 @@ class MainActivity : ComponentActivity() {
 
     private val intentState = MutableStateFlow(0)
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -109,7 +116,7 @@ class MainActivity : ComponentActivity() {
             var pageScale by remember { mutableFloatStateOf(prefs.getFloat("page_scale", 1f)) }
             var enableBlur by remember { mutableStateOf(prefs.getBoolean("enable_blur", true)) }
             var enableFloatingBottomBar by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar", false)) }
-            var enableFloatingBottomBarBlur by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar_blur", true)) }
+            var enableFloatingBottomBarBlur by remember { mutableStateOf(prefs.getBoolean("enable_floating_bottom_bar_blur", false)) }
             var uiModeValue by remember { mutableStateOf(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE) }
             val uiMode = remember(uiModeValue) {
                 UiMode.fromValue(uiModeValue)
@@ -138,7 +145,9 @@ class MainActivity : ComponentActivity() {
                         "page_scale" -> pageScale = prefs.getFloat("page_scale", 1f)
                         "enable_blur" -> enableBlur = prefs.getBoolean("enable_blur", true)
                         "enable_floating_bottom_bar" -> enableFloatingBottomBar = prefs.getBoolean("enable_floating_bottom_bar", false)
-                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur = prefs.getBoolean("enable_floating_bottom_bar_blur", true)
+                        "enable_floating_bottom_bar_blur" -> enableFloatingBottomBarBlur =
+                            prefs.getBoolean("enable_floating_bottom_bar_blur", false)
+
                         "ui_mode" -> uiModeValue = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE
                     }
                 }
@@ -176,7 +185,7 @@ class MainActivity : ComponentActivity() {
                         intentState = intentState
                     )
 
-                    Scaffold {
+                    val navDisplay = @Composable {
                         NavDisplay(
                             backStack = navigator.backStack,
                             entryDecorators = listOf(
@@ -199,7 +208,7 @@ class MainActivity : ComponentActivity() {
                             entryProvider = entryProvider {
                                 entry<Route.Main> { MainScreen() }
                                 entry<Route.About> { AboutScreen() }
-                                entry<Route.ColorPalette> { ColorPaletteScreenMaterial() }
+                                entry<Route.ColorPalette> { ColorPaletteScreen() }
                                 entry<Route.AppProfileTemplate> { AppProfileTemplateScreen() }
                                 entry<Route.TemplateEditor> { key -> TemplateEditorScreen(key.template, key.readOnly) }
                                 entry<Route.AppProfile> { key -> AppProfileScreen(key.uid, key.packageName) }
@@ -220,6 +229,11 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Sulog> { SulogScreen() }
                             }
                         )
+                    }
+
+                    when (uiMode) {
+                        UiMode.Material -> androidx.compose.material3.Scaffold { navDisplay() }
+                        UiMode.Miuix -> Scaffold { navDisplay() }
                     }
                 }
             }
@@ -280,20 +294,20 @@ fun MainScreen() {
     CompositionLocalProvider(
         LocalMainPagerState provides mainPagerState
     ) {
-        Scaffold(
-            bottomBar = {
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    BottomBar(
-                        hazeState = hazeState,
-                        hazeStyle = hazeStyle,
-                        backdrop = backdrop,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
-                }
-            },
-        ) { innerPadding ->
+        val bottomBar = @Composable {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BottomBar(
+                    hazeState = hazeState,
+                    hazeStyle = hazeStyle,
+                    backdrop = backdrop,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        }
+
+        val content = @Composable { innerPadding: PaddingValues ->
             HorizontalPager(
                 modifier = Modifier
                     .then(if (enableBlur) Modifier.hazeSource(state = hazeState) else Modifier)
@@ -308,6 +322,16 @@ fun MainScreen() {
                     2 -> ModulePager(navController, innerPadding.calculateBottomPadding())
                     3 -> SettingPager(navController, innerPadding.calculateBottomPadding())
                 }
+            }
+        }
+
+        when (uiMode) {
+            UiMode.Material -> androidx.compose.material3.Scaffold(bottomBar = bottomBar) { innerPadding ->
+                content(innerPadding)
+            }
+
+            UiMode.Miuix -> Scaffold(bottomBar = bottomBar) { innerPadding ->
+                content(innerPadding)
             }
         }
     }

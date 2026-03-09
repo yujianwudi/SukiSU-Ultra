@@ -1,5 +1,7 @@
 package com.sukisu.ultra.ui.viewmodel
 
+import com.materialkolor.PaletteStyle
+import com.materialkolor.dynamiccolor.ColorSpec
 import com.sukisu.ultra.ui.UiMode
 
 data class SettingsUiState(
@@ -8,7 +10,10 @@ data class SettingsUiState(
     val checkModuleUpdate: Boolean = true,
     val alternativeIcon : Boolean = false,
     val themeMode: Int = 0,
+    val miuixMonet: Boolean = false,
     val keyColor: Int = 0,
+    val colorStyle: String = PaletteStyle.TonalSpot.name,
+    val colorSpec: String = ColorSpec.SpecVersion.Default.name,
     val enablePredictiveBack: Boolean = false,
     val enableBlur: Boolean = true,
     val enableFloatingBottomBar: Boolean = false,

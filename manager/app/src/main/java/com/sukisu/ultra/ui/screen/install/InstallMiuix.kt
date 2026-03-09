@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
@@ -66,7 +67,6 @@ import com.sukisu.ultra.ui.kernelFlash.KpmPatchOption
 import com.sukisu.ultra.ui.kernelFlash.KpmPatchSelectionDialogMiuix
 import com.sukisu.ultra.ui.kernelFlash.component.SlotSelectionDialogMiuix
 import com.sukisu.ultra.ui.kernelFlash.rememberAnyKernel3State
-import com.sukisu.ultra.ui.kernelFlash.rememberAnyKernel3StateMiuix
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.screen.flash.FlashIt
@@ -78,6 +78,7 @@ import com.sukisu.ultra.ui.util.getDefaultPartition
 import com.sukisu.ultra.ui.util.getSlotSuffix
 import com.sukisu.ultra.ui.util.isAbDevice
 import com.sukisu.ultra.ui.util.rootAvailable
+import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -91,7 +92,9 @@ import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperCheckbox
 import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.ConvertFile
 import top.yukonga.miuix.kmp.icon.extended.MoveFile
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
@@ -337,13 +340,14 @@ fun InstallScreenMiuix(preselectedKernelUri: String? = null) {
                                 Icon(
                                     MiuixIcons.ConvertFile,
                                     tint = colorScheme.onSurface,
-                                    modifier = Modifier.padding(end = 16.dp),
+                                    modifier = Modifier.padding(end = 12.dp),
                                     contentDescription = null
                                 )
                             }
                         )
                     }
                 }
+                
                 // LKM 上传（仅 GKI）
                 if (isGKI) {
                     Card(
@@ -351,7 +355,7 @@ fun InstallScreenMiuix(preselectedKernelUri: String? = null) {
                             .fillMaxWidth()
                             .padding(top = 12.dp),
                     ) {
-                        SuperArrow(
+                        BasicComponent(
                             title = stringResource(id = R.string.install_upload_lkm_file),
                             summary = (lkmSelection as? LkmSelection.LkmUri)?.let {
                                 stringResource(
@@ -364,9 +368,36 @@ fun InstallScreenMiuix(preselectedKernelUri: String? = null) {
                                 Icon(
                                     MiuixIcons.MoveFile,
                                     tint = colorScheme.onSurface,
-                                    modifier = Modifier.padding(end = 16.dp),
+                                    modifier = Modifier.padding(end = 12.dp),
                                     contentDescription = null
                                 )
+                            },
+                            endActions = {
+                                if (lkmSelection is LkmSelection.LkmUri) {
+                                    IconButton(
+                                        onClick = { lkmSelection = LkmSelection.KmiNone }
+                                    ) {
+                                        Icon(
+                                            MiuixIcons.Close,
+                                            modifier = Modifier.size(16.dp),
+                                            contentDescription = stringResource(android.R.string.cancel),
+                                            tint = colorScheme.onSurfaceVariantActions
+                                        )
+                                    }
+                                } else {
+                                    val layoutDirection = LocalLayoutDirection.current
+                                    Icon(
+                                        modifier = Modifier
+                                            .size(width = 10.dp, height = 16.dp)
+                                            .graphicsLayer {
+                                                scaleX = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
+                                            }
+                                            .align(Alignment.CenterVertically),
+                                        imageVector = MiuixIcons.Basic.ArrowRight,
+                                        contentDescription = null,
+                                        tint = colorScheme.onSurfaceVariantActions,
+                                    )
+                                }
                             }
                         )
                     }

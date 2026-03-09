@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -18,17 +19,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
@@ -52,10 +55,10 @@ import com.sukisu.ultra.R
 import com.sukisu.ultra.getKernelVersion
 import com.sukisu.ultra.ui.component.choosekmidialog.ChooseKmiDialog
 import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
-import com.sukisu.ultra.ui.component.material.ExpressiveColumn
-import com.sukisu.ultra.ui.component.material.ExpressiveDropdownItem
-import com.sukisu.ultra.ui.component.material.ExpressiveListItem
-import com.sukisu.ultra.ui.component.material.ExpressiveRadioItem
+import com.sukisu.ultra.ui.component.material.SegmentedColumn
+import com.sukisu.ultra.ui.component.material.SegmentedDropdownItem
+import com.sukisu.ultra.ui.component.material.SegmentedListItem
+import com.sukisu.ultra.ui.component.material.SegmentedRadioItem
 import com.sukisu.ultra.ui.kernelFlash.KpmPatchOption
 import com.sukisu.ultra.ui.kernelFlash.KpmPatchSelectionDialogMaterial
 import com.sukisu.ultra.ui.kernelFlash.component.SlotSelectionDialogMaterial
@@ -126,16 +129,16 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
                     }
                 }
                 else -> {
-                    val isOta = method is InstallMethod.DirectInstallToInactiveSlot
-                    val partitionSelection = partitionsState.getOrNull(partitionSelectionIndex)
-                    val flashIt = FlashIt.FlashBoot(
-                        boot = if (method is InstallMethod.SelectFile) method.uri else null,
-                        lkm = lkmSelection,
-                        ota = isOta,
-                        partition = partitionSelection
-                    )
-                    navigator.push(Route.Flash(flashIt))
-                }
+            val isOta = method is InstallMethod.DirectInstallToInactiveSlot
+            val partitionSelection = partitionsState.getOrNull(partitionSelectionIndex)
+            val flashIt = FlashIt.FlashBoot(
+                boot = if (method is InstallMethod.SelectFile) method.uri else null,
+                lkm = lkmSelection,
+                ota = isOta,
+                partition = partitionSelection
+            )
+            navigator.push(Route.Flash(flashIt))
+        }
             }
         }
     }
@@ -211,7 +214,11 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
         })
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+
+    LaunchedEffect(Unit) {
+        scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+    }
 
     Scaffold(
         topBar = {
@@ -225,6 +232,7 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
         Column(
             modifier = Modifier
                 .padding(innerPadding)
+                .fillMaxHeight()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -233,8 +241,8 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
                     if (method is InstallMethod.HorizonKernel && method.uri != null) {
                         anyKernel3State.onHorizonKernelSelected(method)
                     } else {
-                        installMethod = method
-                    }
+                installMethod = method
+            }
                 },
                 isAbDevice = isAbDevice
             )
@@ -265,78 +273,99 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
                 }
             }
             if (isGKI) {
-                ExpressiveColumn(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    content = listOf(
-                        {
-                            if (partitions.isNotEmpty()) {
-                                ExpressiveDropdownItem(
-                                    enabled = installMethod is InstallMethod.DirectInstall || installMethod is InstallMethod.DirectInstallToInactiveSlot,
-                                    items = displayPartitions,
-                                    selectedIndex = partitionSelectionIndex,
-                                    title = "${stringResource(R.string.install_select_partition)} (${suffix})",
-                                    onItemSelected = { index ->
-                                        hasCustomSelected = true
-                                        partitionSelectionIndex = index
-                                    },
-                                    icon = Icons.Filled.Edit
-                                )
-                            }
-                        },
-                        {
-                            ExpressiveListItem(
-                                leadingContent = {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.DriveFileMove,
-                                        null
-                                    )
-                                },
-                                headlineContent = { Text(stringResource(R.string.install_upload_lkm_file)) },
-                                supportingContent = {
-                                    (lkmSelection as? LkmSelection.LkmUri)?.let {
-                                        Text(
-                                            stringResource(
-                                                R.string.selected_lkm,
-                                                it.uri.lastPathSegment ?: "(file)"
-                                            )
-                                        )
+                SegmentedColumn (
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                content = buildList {
+                    if (partitions.isNotEmpty()) add {
+                        SegmentedDropdownItem(
+                            enabled = installMethod is InstallMethod.DirectInstall || installMethod is InstallMethod.DirectInstallToInactiveSlot,
+                            items = displayPartitions,
+                            selectedIndex = partitionSelectionIndex,
+                            title = "${stringResource(R.string.install_select_partition)} (${suffix})",
+                            onItemSelected = { index ->
+                                hasCustomSelected = true
+                                partitionSelectionIndex = index
+                            },
+                            icon = Icons.Filled.Edit
+                        )
+                    }
+                    add {
+                        SegmentedListItem(
+                            leadingContent = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, null) },
+                            headlineContent = { Text(stringResource(R.string.install_upload_lkm_file)) },
+                            supportingContent = {
+                                (lkmSelection as? LkmSelection.LkmUri)?.let {
+                                    Text(stringResource(R.string.selected_lkm, it.uri.lastPathSegment ?: "(file)"))
+                                }
+                            },
+                            trailingContent = {
+                                if (lkmSelection is LkmSelection.LkmUri) {
+                                    IconButton(onClick = { lkmSelection = LkmSelection.KmiNone }) {
+                                        Icon(Icons.Filled.Close, contentDescription = stringResource(android.R.string.cancel))
                                     }
-                                },
-                                trailingContent = {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        null
-                                    )
-                                },
-                                onClick = { onLkmUpload() }
-                            )
-                        }
-                    )
-                )
+                                } else {
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                                }
+                            },
+                            onClick = { onLkmUpload() }
+                        )
+                    }
+                }
+            )
             }
 
             // AnyKernel3 刷写
             (installMethod as? InstallMethod.HorizonKernel)?.let { method ->
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    content = listOf({
+                    content = buildList {
                         if (isAbDevice && method.slot != null) {
-                            ExpressiveListItem(
-                                onClick = { anyKernel3State.onReopenSlotDialog(method) },
+                            add {
+                                SegmentedListItem(
+                                    onClick = { anyKernel3State.onReopenSlotDialog(method) },
+                                    leadingContent = {
+                                        Icon(
+                                            Icons.Filled.SdStorage,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    headlineContent = {
+                                        Text(
+                                            stringResource(
+                                                id = R.string.selected_slot,
+                                                if (method.slot == "a") stringResource(id = R.string.slot_a)
+                                                else stringResource(id = R.string.slot_b)
+                                            )
+                                        )
+                                    },
+                                    trailingContent = {
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                                    }
+                                )
+                            }
+                        }
+                        add {
+                            SegmentedListItem(
+                                onClick = { anyKernel3State.onReopenKpmDialog(method) },
                                 leadingContent = {
                                     Icon(
-                                        Icons.Filled.SdStorage,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        Icons.Filled.Security,
+                                        tint = when (kpmPatchOption) {
+                                            KpmPatchOption.PATCH_KPM -> MaterialTheme.colorScheme.primary
+                                            KpmPatchOption.UNDO_PATCH_KPM -> MaterialTheme.colorScheme.secondary
+                                            KpmPatchOption.FOLLOW_KERNEL -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                         contentDescription = null
                                     )
                                 },
                                 headlineContent = {
                                     Text(
-                                        stringResource(
-                                            id = R.string.selected_slot,
-                                            if (method.slot == "a") stringResource(id = R.string.slot_a)
-                                            else stringResource(id = R.string.slot_b)
-                                        )
+                                        when (kpmPatchOption) {
+                                            KpmPatchOption.PATCH_KPM -> stringResource(R.string.kpm_patch_enabled)
+                                            KpmPatchOption.UNDO_PATCH_KPM -> stringResource(R.string.kpm_undo_patch_enabled)
+                                            KpmPatchOption.FOLLOW_KERNEL -> stringResource(R.string.kpm_follow_kernel_file)
+                                        }
                                     )
                                 },
                                 trailingContent = {
@@ -344,34 +373,7 @@ fun InstallScreenMaterial(preselectedKernelUri: String? = null) {
                                 }
                             )
                         }
-                    }, {
-                        ExpressiveListItem(
-                            onClick = { anyKernel3State.onReopenKpmDialog(method) },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Filled.Security,
-                                    tint = when (kpmPatchOption) {
-                                        KpmPatchOption.PATCH_KPM -> MaterialTheme.colorScheme.primary
-                                        KpmPatchOption.UNDO_PATCH_KPM -> MaterialTheme.colorScheme.secondary
-                                        KpmPatchOption.FOLLOW_KERNEL -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    contentDescription = null
-                                )
-                            },
-                            headlineContent = {
-                                Text(
-                                    when (kpmPatchOption) {
-                                        KpmPatchOption.PATCH_KPM -> stringResource(R.string.kpm_patch_enabled)
-                                        KpmPatchOption.UNDO_PATCH_KPM -> stringResource(R.string.kpm_undo_patch_enabled)
-                                        KpmPatchOption.FOLLOW_KERNEL -> stringResource(R.string.kpm_follow_kernel_file)
-                                    }
-                                )
-                            },
-                            trailingContent = {
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                            }
-                        )
-                    })
+                    }
                 )
             }
 
@@ -467,12 +469,11 @@ private fun SelectInstallMethod(
     }
 
     key(isAbDevice) {
-        ExpressiveColumn(
+        SegmentedColumn(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            selectedIndices = radioOptions.indexOfFirst { it.javaClass == selectedOption?.javaClass }.let { if (it >= 0) setOf(it) else emptySet() },
             content = radioOptions.map { option ->
                 {
-                    ExpressiveRadioItem(
+                    SegmentedRadioItem(
                         title = stringResource(option.label),
                         summary = option.summary,
                         selected = option.javaClass == selectedOption?.javaClass,
@@ -484,19 +485,23 @@ private fun SelectInstallMethod(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TopBar(
     onBack: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
-    TopAppBar(
+    LargeFlexibleTopAppBar(
         title = { Text(stringResource(R.string.install)) },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
             }
         },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface
+        ),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         scrollBehavior = scrollBehavior
     )

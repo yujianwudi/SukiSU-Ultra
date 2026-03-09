@@ -2,7 +2,6 @@ package com.sukisu.ultra.ui.screen.settings
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -33,27 +31,23 @@ import androidx.compose.material.icons.filled.RemoveModerator
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.rounded.Adb
-import androidx.compose.material.icons.rounded.AspectRatio
-import androidx.compose.material.icons.rounded.DeveloperMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -74,20 +68,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.sukisu.ultra.BuildConfig
-import com.sukisu.ultra.KernelSUApplication.Companion.setEnableOnBackInvokedCallback
 import com.sukisu.ultra.Natives
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.UiMode
 import com.sukisu.ultra.ui.component.KsuIsValid
 import com.sukisu.ultra.ui.component.dialog.rememberLoadingDialog
-import com.sukisu.ultra.ui.component.material.ExpressiveColumn
-import com.sukisu.ultra.ui.component.material.ExpressiveDropdownItem
-import com.sukisu.ultra.ui.component.material.ExpressiveListItem
-import com.sukisu.ultra.ui.component.material.ExpressiveSwitchItem
+import com.sukisu.ultra.ui.component.material.SegmentedColumn
+import com.sukisu.ultra.ui.component.material.SegmentedDropdownItem
+import com.sukisu.ultra.ui.component.material.SegmentedListItem
+import com.sukisu.ultra.ui.component.material.SegmentedSwitchItem
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
 import com.sukisu.ultra.ui.navigation3.Navigator
 import com.sukisu.ultra.ui.navigation3.Route
-import com.sukisu.ultra.ui.screen.sulog.SulogScreen
 import com.sukisu.ultra.ui.util.LocalSnackbarHost
 import com.sukisu.ultra.ui.util.getBugreportFile
 import com.sukisu.ultra.ui.util.getSuSFSStatus
@@ -105,7 +97,7 @@ import java.time.format.DateTimeFormatter
 fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
     val viewModel = viewModel<SettingsViewModel>()
     val uiState by viewModel.uiState.collectAsState()
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val snackBarHost = LocalSnackbarHost.current
 
     Scaffold(
@@ -128,7 +120,6 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .verticalScroll(rememberScrollState())
         ) {
-
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             val logSavedText = stringResource(R.string.log_saved)
@@ -152,11 +143,11 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
 
             Spacer(modifier = Modifier.height(8.dp))
             KsuIsValid {
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf(
                         {
-                            ExpressiveSwitchItem(
+                            SegmentedSwitchItem(
                                 icon = Icons.Filled.Update,
                                 title = stringResource(id = R.string.settings_check_update),
                                 summary = stringResource(id = R.string.settings_check_update_summary),
@@ -167,7 +158,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                             )
                         },
                         {
-                            ExpressiveSwitchItem(
+                            SegmentedSwitchItem(
                                 icon = Icons.Rounded.UploadFile,
                                 title = stringResource(id = R.string.settings_module_check_update),
                                 summary = stringResource(id = R.string.settings_check_update_summary),
@@ -182,11 +173,11 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
             }
 
             val uiModeItems = listOf(UiMode.Miuix.name, UiMode.Material.name)
-            ExpressiveColumn(
+            SegmentedColumn(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 content = buildList {
                     add {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.ColorPalette) },
                             headlineContent = { Text(stringResource(id = R.string.settings_theme)) },
                             supportingContent = { Text(stringResource(id = R.string.settings_theme_summary)) },
@@ -200,7 +191,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                         )
                     }
                     add {
-                        ExpressiveDropdownItem(
+                        SegmentedDropdownItem(
                             icon = Icons.Rounded.Palette,
                             title = stringResource(id = R.string.settings_ui_mode),
                             summary = stringResource(id = R.string.settings_ui_mode_summary),
@@ -211,63 +202,15 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                             }
                         )
                     }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        add {
-                            ExpressiveSwitchItem(
-                                icon = Icons.Rounded.Adb,
-                                title = stringResource(id = R.string.settings_enable_predictive_back),
-                                summary = stringResource(id = R.string.settings_enable_predictive_back_summary),
-                                checked = uiState.enablePredictiveBack,
-                                onCheckedChange = {
-                                    viewModel.setEnablePredictiveBack(it)
-                                    setEnableOnBackInvokedCallback(
-                                        context.applicationInfo,
-                                        it
-                                    )
-                                    (context as? android.app.Activity)?.recreate()
-                                }
-                            )
-                        }
-                    }
-                    add {
-                        var sliderValue by remember(uiState.pageScale) { mutableFloatStateOf(uiState.pageScale) }
-                        ExpressiveListItem(
-                            headlineContent = { Text(stringResource(id = R.string.settings_page_scale)) },
-                            supportingContent = { Text(stringResource(id = R.string.settings_page_scale_summary)) },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Rounded.AspectRatio,
-                                    stringResource(id = R.string.settings_page_scale)
-                                )
-                            },
-                            trailingContent = { 
-                                Text(
-                                    "${(sliderValue * 100).toInt()}%",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            bottomContent = {
-
-                                Slider(
-                                    value = sliderValue,
-                                    onValueChange = { sliderValue = it },
-                                    onValueChangeFinished = { viewModel.setPageScale(sliderValue) },
-                                    valueRange = 0.8f..1.1f,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        )
-                    }
                 }
             )
 
             val profileTemplate = stringResource(id = R.string.settings_profile_template)
             KsuIsValid {
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.AppProfileTemplate) },
                             headlineContent = { Text(profileTemplate) },
                             supportingContent = { Text(stringResource(id = R.string.settings_profile_template_summary)) },
@@ -282,10 +225,10 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                     }
                 )
                 val toolsTitle = stringResource(id = R.string.settings_tools)
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.Tool) },
                             headlineContent = { Text(toolsTitle) },
                             supportingContent = { Text(stringResource(id = R.string.settings_tools_summary)) },
@@ -303,10 +246,10 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
 
             val kpmTitle = stringResource(id = R.string.kpm_title)
             if (rememberKpmAvailable()) {
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.Kpm) },
                             headlineContent = { Text(kpmTitle) },
                             supportingContent = { Text(stringResource(id = R.string.settings_kpm_summary)) },
@@ -326,10 +269,10 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
             val supported = getSuSFSStatus().equals("true", ignoreCase = true)
             if (supported) {
                 if (rememberKpmAvailable()) {
-                    ExpressiveColumn(
+                    SegmentedColumn(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         content = listOf {
-                            ExpressiveListItem(
+                            SegmentedListItem(
                                 onClick = { navigator.push(Route.SuSFS) },
                                 headlineContent = { Text(susfsTitle) },
                                 supportingContent = { Text(stringResource(id = R.string.settings_kpm_summary)) },
@@ -353,7 +296,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                     stringResource(id = R.string.settings_mode_disable_always),
                 )
 
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf(
                         {
@@ -362,7 +305,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                                 "managed" -> stringResource(id = R.string.feature_status_managed_summary)
                                 else -> stringResource(id = R.string.settings_sucompat_summary)
                             }
-                            ExpressiveDropdownItem(
+                            SegmentedDropdownItem(
                                 icon = Icons.Filled.RemoveModerator,
                                 title = stringResource(id = R.string.settings_sucompat),
                                 summary = suSummary,
@@ -380,7 +323,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                                 "managed" -> stringResource(id = R.string.feature_status_managed_summary)
                                 else -> stringResource(id = R.string.settings_kernel_umount_summary)
                             }
-                            ExpressiveSwitchItem(
+                            SegmentedSwitchItem(
                                 icon = Icons.Filled.RemoveCircle,
                                 title = stringResource(id = R.string.settings_kernel_umount),
                                 summary = umountSummary,
@@ -391,7 +334,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                             }
                         },
                         {
-                            ExpressiveSwitchItem(
+                            SegmentedSwitchItem(
                                 icon = Icons.Filled.FolderDelete,
                                 title = stringResource(id = R.string.settings_umount_modules_default),
                                 summary = stringResource(id = R.string.settings_umount_modules_default_summary),
@@ -402,7 +345,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                             )
                         },
                         {
-                            ExpressiveSwitchItem(
+                            SegmentedSwitchItem(
                                 icon = Icons.Filled.DeveloperMode,
                                 title = stringResource(id = R.string.enable_web_debugging),
                                 summary = stringResource(id = R.string.enable_web_debugging_summary),
@@ -417,12 +360,12 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
             }
 
             if (Natives.isLkmMode) {
-                ExpressiveColumn(
+                SegmentedColumn(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     content = listOf(
                         {
                             val uninstall = stringResource(id = R.string.settings_uninstall)
-                            ExpressiveListItem(
+                            SegmentedListItem(
                                 onClick = { showUninstallDialog.value = true },
                                 headlineContent = { Text(uninstall) },
                                 leadingContent = { Icon(Icons.Filled.Delete, uninstall) }
@@ -432,12 +375,12 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                 )
             }
 
-            ExpressiveColumn(
+            SegmentedColumn(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 content = listOf (
                     {
                         val sulogtext = stringResource(id = R.string.settings_view_sulog)
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.Sulog) },
                             headlineContent = { Text(sulogtext) },
                             leadingContent = {
@@ -451,11 +394,11 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
             )
 
             var showBottomsheet by remember { mutableStateOf(false) }
-            ExpressiveColumn(
+            SegmentedColumn(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 content = listOf(
                     {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { showBottomsheet = true },
                             headlineContent = { Text(stringResource(id = R.string.send_log)) },
                             leadingContent = {
@@ -467,7 +410,7 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
                         )
                     },
                     {
-                        ExpressiveListItem(
+                        SegmentedListItem(
                             onClick = { navigator.push(Route.About) },
                             headlineContent = { Text(stringResource(id = R.string.about)) },
                             leadingContent = {
@@ -581,13 +524,17 @@ fun SettingPagerMaterial(navigator: Navigator, bottomInnerPadding: Dp) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TopBar(
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
-    TopAppBar(
+    LargeFlexibleTopAppBar(
         title = { Text(stringResource(R.string.settings)) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface
+        ),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         scrollBehavior = scrollBehavior
     )

@@ -16,10 +16,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
-import com.sukisu.ultra.ui.component.material.ExpressiveColumn
-import com.sukisu.ultra.ui.component.material.ExpressiveRadioItem
+import com.sukisu.ultra.ui.component.material.SegmentedColumn
+import com.sukisu.ultra.ui.component.material.SegmentedRadioItem
 import com.sukisu.ultra.ui.util.getCurrentKmi
 import com.sukisu.ultra.ui.util.getSupportedKmis
+import kotlin.collections.map
 
 @Composable
 fun ChooseKmiDialogMaterial(
@@ -28,7 +29,7 @@ fun ChooseKmiDialogMaterial(
 ) {
     if (!showDialog.value) return
 
-    val supportedKMIs by produceState(initialValue = emptyList<String>()) {
+    val supportedKMIs by produceState(initialValue = emptyList()) {
         value = getSupportedKmis()
     }
 
@@ -72,11 +73,10 @@ fun ChooseKmiDialogMaterial(
             )
         },
         text = {
-            ExpressiveColumn(
-                selectedIndices = supportedKMIs.indexOf(selectedKmi.value).let { if (it >= 0) setOf(it) else emptySet() },
+            SegmentedColumn(
                 content = supportedKMIs.map { kmi ->
                     {
-                        ExpressiveRadioItem(
+                        SegmentedRadioItem(
                             title = kmi,
                             summary = if (kmi == currentKmi) stringResource(R.string.current_device_kmi) else null,
                             selected = selectedKmi.value == kmi,

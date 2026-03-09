@@ -42,8 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.KsuIsValid
-import com.sukisu.ultra.ui.component.material.ExpressiveColumn
-import com.sukisu.ultra.ui.component.material.ExpressiveListItem
+import com.sukisu.ultra.ui.component.material.SegmentedColumn
+import com.sukisu.ultra.ui.component.material.SegmentedListItem
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.util.getSELinuxStatus
@@ -83,12 +83,12 @@ fun ToolsMaterial() {
                 KsuIsValid {
                     SelinuxToggleSectionMaterial(scope = scope, context = context)
 
-                    ExpressiveColumn(
+                    SegmentedColumn(
                         modifier = Modifier.padding(top = 12.dp),
                         content = listOf(
                             {
                                 val umontManager = stringResource(id = R.string.umount_path_manager)
-                                ExpressiveListItem(
+                                SegmentedListItem(
                                     onClick = { navigator.push(Route.UmountManager) },
                                     headlineContent = { Text(umontManager) },
                                     leadingContent = {
@@ -124,12 +124,12 @@ fun SelinuxToggleSectionMaterial(
         selinuxLoading = false
     }
 
-    ExpressiveColumn(
+    SegmentedColumn(
         modifier = Modifier.padding(top = 12.dp),
         content = listOf(
             {
                 val statusLabel = getSELinuxStatus()
-                ExpressiveListItem(
+                SegmentedListItem(
                     headlineContent = { Text(stringResource(R.string.tools_selinux_toggle)) },
                     supportingContent = { Text(stringResource(R.string.tools_selinux_summary, statusLabel)) },
                     leadingContent = {
@@ -235,11 +235,11 @@ private fun AllowlistBackupSectionMaterial(
         }
     }
 
-    ExpressiveColumn(
+    SegmentedColumn(
         modifier = Modifier.padding(vertical = 12.dp),
         content = listOf(
             {
-                ExpressiveListItem(
+                SegmentedListItem(
                     headlineContent = { Text(stringResource(R.string.allowlist_backup_title)) },
                     supportingContent = { Text(stringResource(R.string.allowlist_backup_summary_picker)) },
                     leadingContent = {
@@ -255,7 +255,7 @@ private fun AllowlistBackupSectionMaterial(
                 )
             },
             {
-                ExpressiveListItem(
+                SegmentedListItem(
                     headlineContent = { Text(stringResource(R.string.allowlist_restore_title)) },
                     supportingContent = { Text(stringResource(R.string.allowlist_restore_summary_picker)) },
                     leadingContent = {
